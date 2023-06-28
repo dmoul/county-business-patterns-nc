@@ -1,0 +1,24 @@
+# Introduction {.unnumbered}
+
+What's the "shape" of employment in North Carolina, and how has it changed over the last two decades? The US Census County Business Patterns (CBP) provides data that help to answer these questions.
+
+>CBP is an annual series that provides subnational economic data by industry. This series includes the number of establishments, employment during the week of March 12, first quarter payroll, and annual payroll.^[<https://www.census.gov/programs-surveys/cbp.html> ]
+
+The data is sourced and process as follows:
+
+>CBP basic data items are extracted from the Business Register (BR), a database of all known single and multi-establishment employer companies maintained and updated by the U.S. Census Bureau. The BR contains the most complete, current, and consistent data for business establishments. The annual Report of Organization survey provides individual establishment data for multi-establishment companies. Data for single-establishment companies are obtained from various Census Bureau programs, such as the Economic Census, Annual Survey of Manufactures and Current Business Surveys, as well as from administrative record sources.
+>
+>CBP data are processed through various automated and analytical edits to remove anomalies, validate geographic coding, addresses, and industry classification. For more information on industry and geography classification, refer to the Methodology page. Noise infusion methodology is applied to protect individual business establishments from disclosure. Noise infusion was first applied to CBP data in 2007. Prior to 2007, data were protected using the complementary cell suppression method.^[<https://www.census.gov/programs-surveys/cbp/about.html> ]
+
+The CBP includes and excludes the following:
+
+> ... The County Business Patterns (CBP) covers all NAICS industries except crop and animal production; rail transportation; National Postal Service; pension, health, welfare, and vacation funds; trusts, estates, and agency accounts; private households; and public administration. The CBP also excludes most government employees.^[<https://www.census.gov/econ/overview/mu0800.html> ]
+
+At the time of writing (June 2023) the latest available data is for 2021. I downloaded county-level datasets for the 21 years 2001 - 2021 from <https://www.census.gov/programs-surveys/cbp/data/datasets.html> .  
+
+The data include number of establishments in various size categories, number of workers, and average salary. The CBP uses the [North American Industry Classification System](https://www.census.gov/naics/) (NAICS), which in its detailed categories change over time. I limit my use to sector totals by county, which are more comparable through this time period. The sector totals are also much less sensitive to changes made in the data preparation process, notably withholding data or adding noise so that data from individual firms are not identifiable.
+
+I use the terms *employment*, *employees*, and *workers* interchangeably. Where I calculate summary average wages, I use weighted means.
+
+The NAICS sector summary categories are listed in @sec-tables.
+

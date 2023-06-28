@@ -1,0 +1,649 @@
+# NC employment and sector average wages 2001-2021
+
+```{r}
+#| include: false
+
+source("./scripts/setup.R")
+
+data_label_size <- 3.5 # for plots using labels as data points
+
+```
+
+```{r}
+#| label: define-fips-data
+
+# since no change in NC county FIPS codes over this time period, I can use the latest
+# includes fipscty 999 "Statewide" that corresponds to employment not associated with a county
+d_fips_county_ref_all <- read_csv("./data/ref/georef17.txt",
+                      col_types = "ccc",
+                      show_col_types = FALSE) |>
+  rename(fipstate = st,
+         fipscty = cty,
+         county_name = ctyname) |>
+  mutate_if(is.character, ~ purrr::map_chr(.x, iconv, "UTF-8", "UTF-8", sub='')) %>% # just in case
+  separate(county_name, into = c("county_name", "state_name"), sep = ", ") |>
+  mutate(state_name = if_else(state_name == "Massaschusetts", "Massachusetts", state_name)) # yes, there is an error in the source!
+
+d_fips_county_ref <- d_fips_county_ref_all |>
+  filter(fipstate == "37") |>
+  mutate(county_name = str_remove(county_name, " County$"),
+         county_name = if_else(county_name == "Statewide", "Statewide, NC", county_name)) |>
+  select(-state_name)
+
+# Since sector total codes and descriptions have not changed in this time period, I'll use the latest
+d_naics_ref_2021 <- read_csv("./data/ref/naics2017.txt",
+                      col_types = "cc",
+                      show_col_types = FALSE) |>
+  clean_names()|>
+  mutate_if(is.character, ~ purrr::map_chr(.x, iconv, "UTF-8", "UTF-8", sub='')) %>% # just in case
+  rename(naics_descr = description) |>
+  mutate(naics_descr = str_to_sentence(naics_descr),
+         naics_descr = str_replace_all(naics_descr, "&", "and"))
+
+d_naics_abbr_ref <- tribble(
+  ~ naics_descr,                                                                 ~naics_abbr_num,  ~naics_abbr,
+   "Agriculture, Forestry, Fishing and Hunting",                                  3,               "AgForFish",
+   "Utilities",                                                                   17,              "Util",
+   "Construction",                                                                5,               "Constr",
+   "Manufacturing",                                                               10,              "Manuf",
+   "Wholesale Trade",                                                             18,              "Whlsale",
+   "Retail Trade",                                                                15,              "Retail",
+   "Transportation and Warehousing",                                              16,              "Transpt",
+   "Information",                                                                 9,               "Info",
+   "Finance and Insurance",                                                       7,               "FinIns",
+   "Real Estate and Rental and Leasing",                                          14,              "RealEst",
+   "Professional, Scientific, and Technical Services",                            13,              "ProfSciTec",
+   "Management of Companies and Enterprises",                                     12,              "Mgmt",
+   "Administrative and Support and Waste Management and Remediation Services",    2,               "AdminWaste",
+   "Educational Services",                                                        6,               "Educ",
+   "Health Care and Social Assistance",                                           8,               "HeathSoc",
+   "Arts, Entertainment, and Recreation",                                         4,               "ArtEntRec",
+   "Accommodation and Food Services",                                             1,               "AccFood",
+   "Other Services (except Public Administration)",                               19,              "OtherServ",
+   "Industries not classified",                                                   20,              "OtherInd",
+   "Mining, Quarrying, and Oil and Gas Extraction",                               11,              "MineOilGas"
+) |>
+  mutate(naics_descr = str_to_sentence(naics_descr))
+
+# d_naics_ref_2021 <- read_csv("./data/ref/naics2017.txt",
+#                       col_types = "cc",
+#                       show_col_types = FALSE) |>
+#   clean_names()|>
+#   mutate_if(is.character, ~ purrr::map_chr(.x, iconv, "UTF-8", "UTF-8", sub='')) %>% # just in case
+#   rename(naics_descr = description) |>
+#   mutate(naics_descr = str_to_sentence(naics_descr),
+#          naics_descr = str_replace_all(naics_descr, "&", "and"))
+```
+
+
+```{r}
+#| label: define-cbp-data-county
+
+data_fname <- "./data/processed/cbp_county_sector_totals_2001_2021.rds"
+
+if(!file.exists(data_fname)) {
+  data_files <- tibble(
+    file_path = fs::dir_ls("./data/raw/",
+                           regexp = ".{3}[0-2][0-9]co.txt")
+  )
+  
+  get_cdp_data_from_file <- function(file_path, year) {
+    read_csv(file = file_path, 
+             id = "path",
+             col_names = TRUE,
+             show_col_types = FALSE) |>
+      clean_names() |>
+      filter(str_detect(naics, "([0-9]{2})?----"))
+  }
+  
+  dta <- bind_rows(
+    bind_rows(
+      dta_part1 <- map_dfr(data_files[1:6, ], get_cdp_data_from_file),
+      dta_part2 <- map_dfr(data_files[7:14, ], get_cdp_data_from_file),
+      dta_part3 <- map_dfr(data_files[15, ], get_cdp_data_from_file),
+      dta_part4 <- map_dfr(data_files[16, ], get_cdp_data_from_file)
+    ),
+    bind_rows(
+      dta_part5 <- map_dfr(data_files[17, ], get_cdp_data_from_file),
+      dta_part6 <- map_dfr(data_files[18:19, ], get_cdp_data_from_file),
+      dta_part7 <- map_dfr(data_files[20:21, ], get_cdp_data_from_file)
+    ) |>
+      rename(n1_4 = n_5) |>
+      # convert to numeric, addressing "N" values
+      mutate(across(n1_4:n1000_4, function(x) ifelse(x == "N", "0", x))) |>
+      mutate(across(n1_4:n1000_4, as.numeric)),
+  ) |>
+    mutate(year = as.numeric(paste0("20", str_extract(path, "\\d{2}")))) |>
+    select(-ends_with(c("flag", "_nf")),
+           -c(censtate:cencty)
+    ) |>
+    relocate(year, .before = path) |>
+    relocate(path, .after = est)
+  
+  write_rds(dta, data_fname,
+            compress = "bz2")
+} else {
+  dta <- read_rds(data_fname)
+}
+
+d_cbp_data <- dta |>
+  select(-c(n1_4:n1000_4))
+
+```
+
+```{r}
+#| label: define-cbp-data-state
+
+# It's worth getting the state data separately from county data and aggregating it (I think) 
+# so that state-level aggregation of establishments at various employee size classes are counted 
+# with state-scope rather than county-cope. 
+# Hypothesis: the state-scope will have noticeably more larger establishments and 
+#             will differ from county-sourced aggregations, since there is more error in the county-sourced (smaller) data
+
+data_fname <- "./data/processed/cbp_state_sector_totals_2001_2021.rds"
+
+if(!file.exists(data_fname)) {
+  data_files <- tibble(
+    file_path = fs::dir_ls("./data/raw-state/",
+                           regexp = ".{3}[0-2][0-9]st.txt")
+  )
+  
+  get_cdp_data_from_file <- function(file_path, year) {
+    read_csv(file = file_path, 
+             id = "path",
+             col_names = TRUE,
+             show_col_types = FALSE) |>
+      clean_names() |>
+      filter(str_detect(naics, "([0-9]{2})?----"))
+  }
+  
+  dta <- bind_rows(
+    bind_rows(
+      dta_part1 <- map_dfr(data_files[1:3, ], get_cdp_data_from_file),
+      dta_part1a <- map_dfr(data_files[4:6, ], get_cdp_data_from_file),
+      dta_part2 <- map_dfr(data_files[7:9, ], get_cdp_data_from_file),
+      dta_part2a <- map_dfr(data_files[10:14, ], get_cdp_data_from_file),
+      dta_part3 <- map_dfr(data_files[15, ], get_cdp_data_from_file),
+      dta_part4 <-  map_dfr(data_files[16, ], get_cdp_data_from_file)
+    ) |>
+      select(-starts_with(c("q", "f_", "f1", "f2", "f5")),
+             -ends_with(c("flag", "_nf", "nf"))),
+    bind_rows(
+      dta_part5 <- map_dfr(data_files[17, ], get_cdp_data_from_file),
+      dta_part6 <- map_dfr(data_files[18:19, ], get_cdp_data_from_file),
+      dta_part7 <- map_dfr(data_files[20:21, ], get_cdp_data_from_file)
+    ) |>
+      select(-starts_with(c("q", "f_", "f1", "f2", "f5")),
+             -ends_with(c("flag", "_nf", "nf"))) |>
+      rename(n1_4 = n_5,
+             e1_4 = e_5,
+             a1_4 = a_5
+             ) |>
+      # convert to numeric, addressing "N" values
+      mutate(across(n1_4:n1000, function(x) ifelse(x == "N", "0", x))) |>
+      mutate(across(n1_4:n1000, as.numeric))
+  ) |>
+    filter(is.na(lfo) | lfo == "-") |> # we only want totals
+    mutate(year = as.numeric(paste0("20", str_extract(path, "\\d{2}")))) |>
+    relocate(year, .before = path) |>
+    select(-censtate)
+
+# x_test_count <- count(dta, year, fipstate)
+    
+  write_rds(dta, data_fname,
+            compress = "bz2")
+} else {
+  dta <- read_rds(data_fname)
+}
+
+d_cbp_data_state <- dta |>
+  select(-c(n1_4:n1000),
+         -c(e1_4, a1_4, lfo))
+
+```
+
+```{r}
+#| label: define-inflation-adjustment
+
+d_infation_ref <- read_xlsx("./data/ref/us-inflation.xlsx",
+                        skip = 13)
+
+inflation_adj <- d_infation_ref$cpi[d_infation_ref$year == 2021] / d_infation_ref$cpi[d_infation_ref$year == 2001]
+d_infation_adj <- d_infation_ref |>
+  filter(year >= 2001,
+         year <= 2021) |>
+  mutate(adj = cpi[year == 2021] / cpi)
+
+```
+
+```{r}
+#| label: define-sector-totals
+
+d_sector_totals_usa <- d_cbp_data_state |>
+  reframe(est = sum(est),
+         emp = sum(emp),
+         .by = c("year", "naics")) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  mutate(emp_pct = emp / sum(emp),
+         .by = year)
+
+d_sector_totals_county <- d_cbp_data |>
+  filter(fipstate == "37") |> # NC only
+  mutate(avg_wage = (ap * 1000) / emp) |>
+  inner_join(d_fips_county_ref,
+             by = c("fipstate" , "fipscty")) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr")
+
+# todo: use d_cbp_data_state?
+d_sector_totals_state <- d_cbp_data_state |>
+  filter(fipstate == "37") |> # NC only
+  left_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  summarize(emp = sum(emp, na.rm = TRUE),
+            avg_wage = sum(ap) * 1000 / emp,
+            .by = c(year, naics, naics_abbr, naics_descr)) |>
+  mutate(emp_pct = emp / sum(emp),
+         .by = year)
+
+d_sector_totals_state_from_county <- d_sector_totals_county |>
+  summarize(emp = sum(emp, na.rm = TRUE),
+            avg_wage = sum(ap) * 1000 / emp,
+            .by = c(year, naics, naics_abbr, naics_descr)) |>
+  mutate(emp_pct = emp / sum(emp),
+         .by = year)
+
+top_naics_cutoff <- 5
+
+top_naics <- d_sector_totals_state |>
+  filter(year == 2021) |>
+  slice_max(order_by = emp, n = top_naics_cutoff) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp),
+         naics_sort_order = row_number()) |>
+  select(naics, naics_abbr, naics_sort_order)
+
+top_county_cutoff <- 10
+
+top_counties_emp <- d_sector_totals_county |>
+  filter(year == 2021) |>
+  summarize(emp_sum = sum(emp),
+            .by = county_name) |>
+  slice_max(order_by = emp_sum, n = top_county_cutoff)
+  
+```
+
+## NC employment by sector
+
+For simplicity's sake, the plots below use sector abbreviations listed in @sec-tables.
+
+```{r fig.height=6, fig.width=8}
+#| label: fig-state-employment-by-sector-count
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "NC state employment by sector 2021"
+
+data_for_plot <- d_sector_totals_state |>
+  filter(year == 2021) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp)) 
+
+nc_naics_abbr_levels = levels(data_for_plot$naics_abbr)
+
+data_for_plot |>
+  ggplot() +
+  geom_col(aes(x = emp, y = naics_abbr),
+           fill = carolina_blue, alpha = 0.6) +
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    title = "NC state employment by sector 2021",
+    subtitle = "Includes all 100 counties and 'Statewide'",
+    x = "Employees",
+    y = "",
+    color = NULL,
+    caption = my_caption
+  )
+```
+
+<br>
+
+The employment distribution across the sectors in NC and the USA overall is similar:
+
+```{r fig.height=6, fig.width=8}
+#| label: fig-state-employment-by-sector-pct-usa-compare
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "NC employment by sector compared to USA 2021"
+
+data_for_plot <- d_sector_totals_state |>
+  filter(year == 2021) |>
+  mutate(scope = "nc") |>
+  bind_rows(d_sector_totals_usa |>
+              filter(year == 2021) |>
+              mutate(scope = "usa")
+            ) |>
+  select(-c(avg_wage, est, naics_abbr_num)) |>
+  mutate(naics_abbr = factor(naics_abbr, levels = nc_naics_abbr_levels)) |> #fct_reorder(naics_abbr, emp, filter(source == "nc"))) |>
+  mutate(low_value = min(emp_pct),
+         high_value = max(emp_pct),
+         .by = naics_abbr) |>
+  mutate(diff_pct = high_value - low_value,
+         diff_pct = if_else(emp_pct == high_value, diff_pct, -1 * diff_pct)) 
+
+diff_pct_cutoff <- 0.005
+
+data_for_plot |>
+  ggplot() +
+  geom_segment(aes(x = low_value, xend = high_value, y = naics_abbr, yend = naics_abbr),
+               alpha = 0.3) +
+  geom_point(aes(x = emp_pct, y = naics_abbr, color = scope),
+           alpha = 0.6) + 
+  geom_point(aes(x = emp_pct, y = naics_abbr, color = scope),
+           alpha = 0.6) + 
+  geom_text(aes(x = high_value, y = naics_abbr,
+                label = if_else(diff_pct > diff_pct_cutoff,
+                                percent(emp_pct, accuracy = .1),
+                                NA_character_)),
+            na.rm = TRUE, size = 3,
+            hjust = 0, nudge_x = 0.003) +
+  geom_text(aes(x = low_value, y = naics_abbr,
+                label = if_else(diff_pct < -1 * diff_pct_cutoff,
+                                percent(emp_pct, accuracy = .1),
+                                NA_character_)),
+            na.rm = TRUE, size = 3,
+            hjust = 1, nudge_x = -0.003) +
+  scale_x_continuous(labels = label_percent()) +
+  scale_color_manual(values = c(carolina_blue, "firebrick")) +
+  theme(legend.position = c(0.8, 0.4),
+        legend.box.background = element_rect(fill = "grey80")) +
+  labs(
+    title = "NC state employment by sector\ncompared to USA 2021",
+    subtitle = glue("Includes all 100 counties and 'Statewide'", 
+                    "; showing percentages where difference is > {percent(diff_pct_cutoff, accuracy = 0.1)}"),
+    x = "Employees",
+    y = "",
+    color = NULL,
+    caption = my_caption
+  )
+
+```
+
+<br>
+
+## Top sectors in largest NC counties
+
+```{r}
+d_nc_2021_top5 <- d_sector_totals_county |>
+  filter(year == 2021) |>
+  inner_join(top_counties_emp,
+            by = "county_name") |>
+  slice_max(order_by = emp,
+            n = 5,
+            by = "fipscty") |>
+  mutate(n_cat = n(),
+         emp_rank = n_cat + 1 - rank(emp,
+                             ties.method = "random"),.by = fipscty)
+```
+
+```{r fig.height=10, fig.width=14}
+#| label: fig-rank-employee-count-top-counties-pct
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Sector percent of country emplyment rank"
+
+county_name_label <- d_sector_totals_county |>
+  filter(year == 2021) |>
+  select(year, fipscty, emp, county_name, naics) |>
+  summarize(emp_sum = sum(emp),
+            .by = county_name) |>
+  slice_max(order_by = emp_sum, n = 10) |>
+  mutate(county_name_label = glue("{county_name}\n{comma(emp_sum)}"),
+         county_name_label = fct_reorder(county_name_label, -emp_sum))
+
+data_for_plot <- d_nc_2021_top5 |>
+  select(county_name, emp, naics, naics_descr, emp_rank) |>
+  left_join(d_naics_abbr_ref,
+             by = c("naics_descr")) |>
+  left_join(county_name_label,
+             by = c("county_name")) |>
+  mutate(pct_emp = emp / emp_sum,
+         county_name_label = fct_reorder(county_name_label, -emp, sum)) |>
+  complete(county_name_label, naics_abbr, fill = list(emp = NA, pct_emp = NA)) 
+
+data_for_plot |> 
+  ggplot() +
+  geom_line(aes(x = county_name_label, y = pct_emp, group = naics_abbr, color = naics_abbr),
+            show.legend = FALSE, na.rm = TRUE) +
+  geom_label(aes(x = county_name_label, y = pct_emp, label = naics_abbr, fill = naics_abbr),
+             show.legend = FALSE, na.rm = TRUE, alpha = 0.4, size = data_label_size) +
+  scale_x_discrete(position = "top") +
+  scale_y_continuous(labels = label_percent()) +
+  coord_cartesian(ylim = c(NA, 0.30)) +
+  theme(axis.text.x = element_text(size = 10)) +
+  labs(
+    title = "Top 5 sectors in 10 largest NC counties:\npercent of county employment",
+    subtitle = glue("Ordered by total county employment reported in CBP",
+                    "; 'Statewide' refers to employees not associated with one county",
+                    "\nNot showing Statewide AdminWaste, since it's over 50% of all 'Statewide' employees"),
+    x = "",
+    y = "Percent of county employment",
+    color = NULL,
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+```{r fig.height=8, fig.width=10}
+#| label: fig-rank-employee-count-top-counties-rank
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Sector rank by number of employees"
+
+data_for_plot |>
+  ggplot() +
+  geom_line(aes(x = county_name_label, y = emp_rank, group = naics_abbr, color = naics_abbr),
+            show.legend = FALSE, na.rm = TRUE) +
+  geom_label(aes(x = county_name_label, y = emp_rank, label = naics_abbr, fill = naics_abbr),
+             show.legend = FALSE, na.rm = TRUE, alpha = 0.4, size = data_label_size) +
+  scale_x_discrete(position = "top") +
+  scale_y_reverse() +
+  theme(axis.text.x = element_text(size = 10)) +
+  labs(
+    title = "Top 5 sectors in 10 largest NC counties: ranking",
+    subtitle = glue("Ordered by total county employment reported in CBP",
+                    "; 'Statewide' refers to workers not associated with one county"),
+    x = "",
+    y = "Rank in county employment",
+    color = NULL,
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+## Trends
+
+The year over year drop in manufacturing jobs through 2012 is striking. As is the consistent growth through the 21-year period in (1) Healthcare and social services and (2) Accommodation and food.
+
+```{r}
+
+data_for_plot <- d_sector_totals_state |>
+  mutate(pct_emp = emp / sum(emp)) |>
+  inner_join(top_naics,
+             by = c("naics", "naics_abbr")) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp))
+
+data_for_plot |>
+  ggplot(aes(year, emp, color  = naics_abbr)) +
+  geom_point(size = 0.6, alpha = 0.4,
+            show.legend = FALSE) +
+  geom_labelsmooth(aes(label = naics_abbr,
+                       hjust = naics_sort_order / top_naics_cutoff - 0.1),
+                   method = 'loess', formula = 'y ~ x',
+                   span = 0.95,
+                   show.legend = FALSE
+  ) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(
+    title = glue("NC employment trends: top {top_naics_cutoff} sectors"),
+    x = "",
+    y = "Number of employees",
+    color = "",
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+Average wage trends are not uniform across sectors. Wages in four of the five highest paying sectors grew faster than inflation while it dropped in "Management". I wonder if the drop in the average wage of the management sector is due to manufacturing and financial services disruptions set in motion by the 2008 financial crisis and the COVID-19 pandemic. 
+
+Utility workers' average wage declined in the years after the 2008 financial crisis and returned to growth in recent years. I wonder why the average wage of utility sector works nearly doubled in 2009 (and only then). That year no major hurricanes hit NC (which is the only likely "one year disruption" I can think of).
+
+```{r fig.height=5, fig.width=7}
+#| label: fig-rank-employee-wages-top-sectors-2021-dollars
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "Sector rank by number of employees TODO: Fixme"
+
+top_wage <- d_sector_totals_state |>
+  filter(year == 2021) |>
+  slice_max(order_by = avg_wage, n = top_naics_cutoff) |>
+  mutate(wage_sort_order = row_number()) |>
+  select(naics, wage_sort_order)
+
+data_for_plot <- d_sector_totals_state |>
+  inner_join(top_wage,
+             by = "naics") |>
+  inner_join(d_infation_adj,
+             by = "year") |>
+  mutate(avg_wage_adjusted = avg_wage * adj)
+
+data_for_plot |>
+  ggplot(aes(year, avg_wage_adjusted, color  = naics_abbr, group = naics_abbr)) +
+  geom_point(size = 0.6, alpha = 0.4,
+            show.legend = FALSE) +
+  geom_labelsmooth(aes(label = naics_abbr, 
+                       hjust = wage_sort_order / top_naics_cutoff - 0.1),
+                   method = 'loess', formula = 'y ~ x',
+                   span = 0.95,
+                   show.legend = FALSE
+  ) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
+                                           prefix = "$")) +
+  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(
+    title = glue("NC average wages: top {top_naics_cutoff} sectors"),
+    subtitle = glue("In 2021 dollars"),
+    x = "",
+    y = "",
+    color = "",
+    caption = my_caption
+  )
+
+```
+
+<br>
+
+## Other topics
+
+There is no relationship between number of employees and average wage in a sector, 
+except in a few high-paying sectors where it seems over time employers hired more workers 
+and wages for the sector rose.
+
+```{r}
+d_sector_totals_county |>
+  #filter(year == 2021) |>
+  filter(emp != 0) |>
+  ggplot(aes(emp, avg_wage, color = naics_abbr)) +
+  geom_point(size = 0.2, alpha = 0.2, na.rm = TRUE,
+             show.legend = FALSE) +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale(),
+                                           prefix = "$")) +
+  scale_y_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    title = "Number of employees by average wage",
+    subtitle = glue("NC counties - CBP sectors 2001-2021; nominal dollars (not adjusted for inflation)",
+    "\nColor is associated with sector"),
+    x = "Average sector wage (log10 scale)",
+    y = "Employees in county (log10 scale)",
+    caption = my_caption
+  )
+
+```
+
+<br>
+
+## Tables {#sec-tables}
+
+Below are the sector summary categories used in the CBP. To simplify plotting, I created some abbreviations:
+
+```{r}
+d_naics_abbr_ref |>
+  select(naics_abbr, naics_descr) |>
+  arrange(naics_abbr) |>
+  mutate(rowid = row_number()) |>
+  gt() |>
+  tab_header(md(glue("**NC state sector employment 2021**",
+                     "<br>*Sum of county sector totals*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10)
+  
+```
+
+<br>
+
+Sectors sorted by number of employees:
+
+```{r}
+d_sector_totals_state |>
+  filter(year == 2021) |>
+  select(-year) |>
+  arrange(-emp) |>
+  mutate(rowid = row_number()) |>
+  relocate(avg_wage, .after = emp_pct) |>
+  gt() |>
+  tab_header(md(glue("**NC sector employment 2021**",
+                     "<br>*Sorted by sector totals*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10) |>
+  fmt_number(columns = c(emp, avg_wage), 
+             decimals = 0) |>
+  fmt_percent(columns = emp_pct, 
+             decimals = 0)
+
+```
+
+<br>
+
+Sorted by average wage:
+
+```{r}
+d_sector_totals_state |>
+  filter(year == 2021) |>
+  select(-year) |>
+  arrange(-avg_wage) |>
+  mutate(rowid = row_number()) |>
+  relocate(avg_wage, .before = emp) |>
+  gt() |>
+  tab_header(md(glue("**NC sector average wage 2021**",
+                     "<br>*Sorted by average wage*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10) |>
+  fmt_number(columns = c(emp, avg_wage), 
+             decimals = 0) |>
+  fmt_percent(columns = emp_pct, 
+             decimals = 0)
+
+```

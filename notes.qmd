@@ -1,0 +1,270 @@
+# Notes
+
+## Introduction
+
+From Jeremy Singer-Vines' [Data Is Plural](data-is-plural.com) — 2023.05.31 edition
+
+> Local business. Despite the name, the Census Bureau’s County Business Patterns datasets cover a range of geographic units, including states, congressional districts, metro areas, counties, and ZIP codes. Generated from the Bureau’s confidential Business Register, they provide the number of establishments and (noise-infused) employee counts and payroll figures, disaggregated by industry code. Last month, the Bureau released the data for 2021. Historical availability varies; the Bureau directly provides data for counties back to 1986, and for ZIP codes back to 1994, for example. Fabian Eckert and colleagues, meanwhile, have converted two older archives of the records into comparable data, spanning 1946 to 1974 and 1975 onward.
+
+This might make a nice addition to my nc-trends exploration.
+
+In nc-trends nearly everything used county aggregation. So I'll start here with counties too.
+
+I'll start with 2021, then add 2011, then perhaps go back further and/or fill in interim years.
+
+For an overview see <https://www.census.gov/programs-surveys/cbp.html>
+
+## Source and reference files
+
+Data from <https://www.census.gov/data/datasets/2021/econ/cbp/2021-cbp.html> downloaded 2023-06-04. Specifically: Complete County File [102.9 MB] <https://www2.census.gov/programs-surveys/cbp/datasets/2021/cbp21co.zip>
+
+It's a CSV that looks like this:
+
+```
+
+(base) dmoul@dmoul-mbp raw % cat cbp21co.txt | head
+"fipstate","fipscty","naics","emp_nf","emp","qp1_nf","qp1","ap_nf","ap","est","n<5","n5_9","n10_19","n20_49","n50_99","n100_249","n250_499","n500_999","n1000","n1000_1","n1000_2","n1000_3","n1000_4"
+"01","001","------","G",11216,"G",97944,"G",424826,924,442,222,118,100,31,8,"N","N","N","N","N","N","N"
+"01","001","11----","G",78,"G",1325,"G",5107,10,9,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","113///","G",68,"G",1213,"G",4563,7,6,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","1133//","G",68,"G",1213,"G",4563,7,6,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","11331/","G",68,"G",1213,"G",4563,7,6,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","113310","G",68,"G",1213,"G",4563,7,6,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","115///","J",10,"J",112,"J",544,3,3,"N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","21----","G",87,"G",1224,"G",5144,6,"N","N","N","N","N","N","N","N","N","N","N","N","N"
+"01","001","212///","G",87,"G",1224,"G",5144,6,"N","N","N","N","N","N","N","N","N","N","N","N","N"
+(base) dmoul@dmoul-mbp raw % 
+
+```
+
+<br>
+
+County Record Layout [<1.0 MB] <https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/2020_record_layouts/county-layout-2020.txt>
+
+```
+				CBP[YR]CO.TXT
+
+                                County Data Dictionary                                
+
+Note:  In the filenames, [YR] is the 2-digit data year.  Each data field is separated by comma (,) delimiters.
+
+
+Field           Data  
+Name            Type    Description
+
+FIPSTATE        C       FIPS State Code
+
+FIPSCTY         C       FIPS County Code
+
+NAICS           C       Industry Code - 6-digit NAICS code.
+
+EMP_NF          C       Total Mid-March Employees Noise Flag (See all Noise Flag definitions at the end of this record 
+                        layout)
+
+EMP             N       Total Mid-March Employees with Noise
+
+QP1_NF          C       Total First Quarter Payroll Noise Flag
+
+QP1             N       Total First Quarter Payroll ($1,000) with Noise
+                                                              
+AP_NF           C       Total Annual Payroll Noise Flag
+
+AP              N       Total Annual Payroll ($1,000) with Noise
+
+EST             N       Total Number of Establishments
+
+N<5             N       Number of Establishments: Less than 5 Employee Size Class
+
+N5_9            N       Number of Establishments: 5-9 Employee Size Class
+
+N10_19          N       Number of Establishments: 10-19 Employee Size Class
+
+N20_49          N       Number of Establishments: 20-49 Employee Size Class
+
+N50_99          N       Number of Establishments: 50-99 Employee Size Class
+
+N100_249        N       Number of Establishments: 100-249 Employee Size Class
+
+N250_499        N       Number of Establishments: 250-499 Employee Size Class
+
+N500_999        N       Number of Establishments: 500-999 Employee Size Class
+
+N1000           N       Number of Establishments: 1,000 or More Employee Size Class
+
+N1000_1         N       Number of Establishments: Employment Size Class:
+                                1,000-1,499 Employees
+
+N1000_2         N       Number of Establishments: Employment Size Class:
+                                1,500-2,499 Employees
+
+N1000_3         N       Number of Establishments: Employment Size Class:
+                                2,500-4,999 Employees
+
+N1000_4         N       Number of Establishments: Employment Size Class:
+                                5,000 or More Employees
+
+
+NOTE: Noise Flag definitions (fields ending in _NF) are:
+
+        G       0 to < 2% noise (low noise)
+        H       2 to < 5% noise (medium noise)
+	J	>= 5% noise (high noise)
+
+      Flag definition for Establishment by Employment Size Class fields (N<5, N5_9, etc.):
+	
+	N	Not available or not comparable
+
+```
+
+<br>
+
+North American Industry Classification System (NAICS) Descriptions [<1.0 MB] <https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics2017.txt>
+
+Note: the naics2017.txt file has 2004 lines. I will need to decide how to aggregate. Perhaps use only the two-digit categories?
+
+```
+"NAICS","DESCRIPTION"
+"------","Total for all sectors"
+"11----","Agriculture, Forestry, Fishing and Hunting"
+"113///","Forestry and Logging"
+"1131//","Timber Tract Operations"
+"11311/","Timber Tract Operations"
+"113110","Timber Tract Operations"
+"1132//","Forest Nurseries and Gathering of Forest Products"
+"11321/","Forest Nurseries and Gathering of Forest Products"
+"113210","Forest Nurseries and Gathering of Forest Products"
+"1133//","Logging"
+"11331/","Logging"
+"113310","Logging"
+"114///","Fishing, Hunting and Trapping"
+"1141//","Fishing"
+"11411/","Fishing"
+"114111","Finfish Fishing"
+"114112","Shellfish Fishing"
+"114119","Other Marine Fishing"
+"1142//","Hunting and Trapping"
+"11421/","Hunting and Trapping"
+"114210","Hunting and Trapping"
+
+```
+
+<br>
+
+State and County Geography Reference [<1.0 MB] <https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/state-county-geography-reference/georef17.txt>
+
+Note: NC FIPS state code is "37"
+
+```
+"st","cty","ctyname"
+"01","001","Autauga County, Alabama"
+"01","003","Baldwin County, Alabama"
+"01","005","Barbour County, Alabama"
+"01","007","Bibb County, Alabama"
+"01","009","Blount County, Alabama"
+
+```
+
+<br>
+
+
+Other data sets and reference files
+
+2011
+
+* https://www2.census.gov/programs-surveys/cbp/datasets/2011/cbp11co.zip
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/noise-layout/county_layout.txt (saved as county_layout11.txt)
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics2007.txt
+
+2001
+
+* https://www2.census.gov/programs-surveys/cbp/datasets/2001/cbp01co.zip
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/full-layout/county_layout.txt  (saved as county_layout01.txt)
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics.txt (saved as naics01.txt)
+
+1991
+
+* https://www2.census.gov/programs-surveys/cbp/datasets/1991/cbp91co.zip
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/full-layout/county_layout_sic.txt (saved as county_layout_sic91.txt)
+* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/sic-code-descriptions/sic88_97.txt
+
+
+The codes changed a lot over the decades. Fortunately there is <https://www.fpeckert.me/cbp/>
+
+```
+County Business Patterns Database
+by Fabian Eckert, Teresa C. Fort, Peter K. Schott, and Natalie J. Yang
+
+Fabian Eckert, Teresa C. Fort, Peter K. Schott, and Natalie J. Yang. 
+"Imputing Missing Values in the US Census Bureau's County Business Patterns." 
+NBER Working Paper #26632, 2021
+
+```
+
+According to the readme http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_concordance_revised.txt
+
+```
+Using the industry concordances:
+
+Each concordance has four columns:
+(input ind code) -- Industry code vintage to be converted
+(output ind code)-- Corresponding industry code in subsequent vintage
+mappings		-- Count of number of mappings
+wt_mappings	-- Mapping weight
+
+Download the concordance corresponding to the correct CBP year.
+    Years	|   Input industry code
+----------------+----------------------------
+1977-1987	| SIC77
+1988-1997	| SIC87
+1998-2002	| NAICS97
+2003-2007	| NAICS02
+2008-2011	| NAICS07
+
+To convert between successive industry code vintages, merge the concordance to the data 
+by the (orig ind code), multiply the original employment count by the weight to 
+get the (output ind code) employment, and collapse by FIPS code and (output ind code). 
+Concordances can be joined together to convert to later vintages.
+
+```
+
+I'm only interested in a small number of category codes. Perhaps I can work backward to get them, then forward to calculate comparable employment counts.
+
+
+From the draft paper (Jan 2021) https://www.fpeckert.me/cbp/efsy.pdf
+
+>Prior to 1998, employment is classified using the Standard Industry Classification (SIC) system, while employment thereafter is expressed according to the North American Industry Classification System (NAICS)
+
+
+Panel with Harmonized 2012 NAICS Industry Codes http://fpeckert.me/cbp/Imputed%20Files/efsy_panel_naics.csv.zip
+
+http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_panel.txt
+
+
+>The NAICS long panel records employment at the most detailed industry-county level of aggregation possible. The sum of all observations in this panel represents the national total. For reasons explained in detail in our working paper, it is not always possible to assign employment to a six-digit NAICS code. In these cases, the employment is attributed to a more aggregate code, e.g., 11////.   
+>
+>We note that unlike in the raw CBP data and the text, where we describe codes such as 11//// as a root that contains the sum of all codes that are more detailed than 11////, that is not what codes of this form represent in the long panel. Instead, the roots in this dataset contain the remainder of 11//// employment that we could not assign to a more disaggregated NAICS code.  Users can obtain the total 11//// employment by summing employment over all codes that start with 11.
+
+
+fipscty = 999 is Statewide employment not attributable to any specific county. It's not a statewide sum. According to Figure 4: Share of Employment in 999 Counties (page 19) in the draft paper, this percentage nationwide has grown from about 1% to about 5% between 1980 and 2020.
+
+I have yet to find the actual transformed data or clear instructions how to transform what I download from the CPB web pages.
+
+Trying http://fpeckert.me/cbp/Imputed%20Files/efsy_2016.zip
+
+See related http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_raw.txt
+
+
+# Moved to RStudio daily build
+
+To address https://github.com/rstudio/rstudio/issues/13188
+
+```
+Error in exists(cacheKey, where = .rs.WorkingDataEnv, inherits = FALSE) : 
+  invalid first argument
+Error in assign(cacheKey, frame, .rs.CachedDataEnv) : 
+  attempt to use zero-length variable name
+```
+
+On 2023-06-25 I installed RStudio-2023.06.1-438.dmg within an hour of earlier installing RStudio-2023.06.0-421.dmg.
+
+I have to remember to move to a stable build in the future.

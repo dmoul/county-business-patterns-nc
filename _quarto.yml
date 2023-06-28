@@ -1,0 +1,35 @@
+project:
+  type: book
+
+book:
+  title: "County Business Patterns in North Carolina"
+  author: "Daniel Moul"
+  date: today
+  chapters:
+    - index.qmd
+    #- prep-data.qmd
+    #- multi-decade-data-prep.qmd
+    #- intro.qmd
+    #- summary.qmd
+    #- references.qmd
+    - cbd-employment-wages.qmd
+    - cbd-establishments.qmd
+    - notes.qmd
+
+execute:
+  #cache: true
+  freeze: auto  # re-render only when source changes
+#  echo: false
+  
+#bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+    code-fold: true
+    code-summary: "Show the code"
+#  pdf:
+#    documentclass: scrreprt
+
+
+
