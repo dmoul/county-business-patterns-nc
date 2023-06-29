@@ -83,17 +83,96 @@ d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021
 
 ```
 
+The data includes "noise flags". Noise is larger where numbers are lower. The state total is reported along with employee size class. If we sum the smaller employee categories, how far are the results from teh reported totals?
+
+
+```{r fig.height=8, fig.width=10}
+#| label: fig-establishments-employee-count-quality-check
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Number of employees - quality check"
+
+data_for_plot <- d_cbp_data_state |>
+  select(year, fipstate, naics,
+         starts_with("e"),
+         -ends_with(c("F")),
+         -est) |>
+  rowwise() |>
+  mutate(emp_sum = sum(c_across(e1_4:e1000)),
+         diff = emp - emp_sum,
+         pct = diff/emp) |>
+  filter(emp > 0,
+         !naics %in% c("99----")) # exclude 'OtherInd'
+
+n_no_cat_values <- data_for_plot |>
+  filter(pct == 1) |>
+  nrow()
+
+n_no_error <- data_for_plot |>
+  filter(pct == 0) |>
+  nrow()
+
+all_rows <- nrow(data_for_plot)
+
+data_for_plot |>
+  ggplot() +
+  geom_point(aes(x = emp, y = pct, color = year),
+             alpha = 0.4, size = 0.4, na.rm = TRUE) +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_color_viridis_c(end = 0.85) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Pct diff from reported number of employees (all states)",
+    subtitle = glue("{comma(all_rows)} data points 2001-2021;",
+                    "; 'pct diff' cacluated as (stated - summed) / stated",
+                    "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
+                    "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)"),
+    x = "Employees (log10 scale)",
+    y = "Pct diff from stated",
+    caption = my_caption
+  )
+
+data_for_plot |>
+  mutate(magnitude = floor(log10(emp))) |>
+  filter(magnitude >= 2) |>
+  ggplot() +
+  stat_ecdf(aes(pct, color = magnitude, group = magnitude),
+            pad = FALSE, linewidth = 1, alpha = 0.6) +
+  # geom_point(aes(x = emp, y = pct, color = year),
+  #            alpha = 0.4, size = 0.4, na.rm = TRUE) +
+  scale_x_continuous(labels = label_percent()) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_color_viridis_c(end = 0.85) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Cumulative distribution\nAs expected: smaller numbers have more error",
+    subtitle = glue("{comma(all_rows)} data points 2001-2021 (all states)",
+                    "; excluding NAICS 'OtherInd' and any category with < 100 employees reported that year",
+                    "\n'pct diff' calculated as (stated - summed) / stated",
+                    "\nmagnitude calculated as floor(log10(number_of_employees_in_state_for_a_naics_category))"),
+    x = "Pct diff from stated",
+    y = "Pct of all data points of one magnitude",
+    color = "Magnitude\n(10^M)",
+    caption = my_caption
+  )
+
+```
+
 ```{r}
-emp_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_249", "n250_499", "n500_999", 
+est_emp_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_249", "n250_499", "n500_999", 
                      "n1000")
 
+emp_size_class_levels = c("e1_4", "e5_9", "e10_19", "e20_49", "e50_99", "e100_249", "e250_499", "e500_999", 
+                     "e1000")
+
 n_employees_ref <- tibble( # note: excluding n1000
-  emp_size_class = emp_size_class_levels,
+  emp_size_class = est_emp_size_class_levels,
   emp_class_count = c(2, 7, 15, 35, 75, 175, 375, 750, 2000),
   factor_order = 19
 )
 
-d_totals_county <- d_cbp_data |>
+d_total_est_county <- d_cbp_data |>
   inner_join(d_fips_county_ref,
              by = c("fipstate" , "fipscty")) |>
   inner_join(d_naics_ref_2021,
@@ -125,7 +204,7 @@ d_sector_totals_county_nc <- d_cbp_data |>
   inner_join(d_naics_abbr_ref,
              by = "naics_descr")
 
-d_totals_state_nc <- d_cbp_data_state |>
+d_total_est_emp_state_nc <- d_cbp_data_state |>
   filter(fipstate == "37") |>
   inner_join(d_fips_state_ref,
              by = c("fipstate")) |>
@@ -152,7 +231,7 @@ d_totals_state_nc <- d_cbp_data_state |>
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(emp_size_class_levels),
+  mutate(emp_size_class = as_factor(est_emp_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
@@ -206,7 +285,7 @@ d_sector_totals_state_nc <- d_cbp_data_state |>
 #                names_to = "emp_size_class",
 #                values_to = "value") |>
 #   filter(emp_size_class != "n1000") |>
-#   mutate(emp_size_class = as_factor(emp_size_class_levels),
+#   mutate(emp_size_class = as_factor(est_emp_size_class_levels),
 #          emp_size_class = as.ordered(emp_size_class),
 #          pct = value / sum(value),
 #          .by = "year") |>
@@ -242,7 +321,7 @@ d_totals_usa <- d_cbp_data_state |>
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(emp_size_class_levels),
+  mutate(emp_size_class = as_factor(est_emp_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
@@ -265,7 +344,7 @@ For simplicity's sake, the plots below that reference sectors use the sector abb
 #| fig-cap: "NC establishments 2021"
 #| column: page-inset-right
 
-p1 <- d_totals_state_nc |>
+p1 <- d_total_est_emp_state_nc |>
   filter(year == 2021) |>
   ggplot() +
   geom_col(aes(x = value, y = emp_size_class),
@@ -278,7 +357,7 @@ p1 <- d_totals_state_nc |>
     color = NULL,
   )
 
-p2 <- d_totals_state_nc |>
+p2 <- d_total_est_emp_state_nc |>
   filter(year == 2021) |>
   inner_join(n_employees_ref,
              by = "emp_size_class") |>
@@ -318,14 +397,14 @@ Let's assume that the average number of workers in each employment size class is
 #| fig-cap: "NC workers in each employee size class 2021"
 #| column: page-inset-right
 
-p1 <- d_totals_state_nc |>
+p1 <- d_total_est_emp_state_nc |>
   filter(year == 2021) |>
   inner_join(n_employees_ref,
              by = "emp_size_class") |>
   mutate(emp = value * emp_class_count,
          pct_emp = emp / sum(emp)) |>
   #mutate(emp_size_class = fct_reorder(emp_size_class, factor_order)) |> # -emp)) |> # reverse factors for plotting
-  mutate(emp_size_class = factor(emp_size_class, emp_size_class_levels)) |> # -emp)) |> # reverse factors for plotting
+  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels)) |> # -emp)) |> # reverse factors for plotting
   ggplot() +
   geom_col(aes(x = pct_emp, y = emp_size_class),
            fill = carolina_blue, alpha = 0.6) +
@@ -337,7 +416,7 @@ p1 <- d_totals_state_nc |>
     color = NULL,
   )
 
-p2 <- d_totals_state_nc |>
+p2 <- d_total_est_emp_state_nc |>
   filter(year == 2021) |>
   inner_join(n_employees_ref,
              by = "emp_size_class") |>
@@ -392,7 +471,7 @@ data_for_plot <- d_sector_totals_state_nc |>
   mutate(emp_in_size_class = value * emp_class_count,
          pct_emp_in_size_class = emp_in_size_class / sum(emp_in_size_class),
          .by = "year") |>
-  mutate(emp_size_class = factor(emp_size_class, emp_size_class_levels),
+  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          naics_abbr = fct_lump(naics_abbr, n = 9, w = pct_emp_in_size_class )) 
 
@@ -494,7 +573,7 @@ data_for_plot <- d_sector_totals_county_nc |>
   mutate(emp_in_size_class = value * emp_class_count,
          pct_emp_in_size_class = emp_in_size_class / sum(emp_in_size_class),
          .by = c("year", "county_name")) |>
-  mutate(emp_size_class = factor(emp_size_class, emp_size_class_levels),
+  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp_in_size_class ),
          county_name = fct_lump(county_name, n = 10, w = emp)) 
@@ -589,54 +668,6 @@ data_for_plot |>
 ```
 
 ***TODO: Does the above graph tell us anything interesting? If not delete.***
-
-<br>
-
-***TODO: check whether "1000 or more" applies at state level or county level; if the latter, may need to explicitly pull state-level data***
-
-```{r fig.height=5, fig.width=7}
-#| label: fig-state-establishments-pct-1000-plus
-#| fig-height: 5
-#| fig-width: 7
-#| fig-cap: "Percent of establishments with 1000 or more employees 2001-2021"
-#| column: page-inset-right
-
-data_for_plot <- d_sector_totals_state_nc |>
-  # filter(year == 2021) |>
-  pivot_longer(n1_4:n1000,
-               names_to = "emp_size_class",
-               values_to = "value") |>
-  # mutate(pct = value / sum(value),
-  #        .by = "year") |>
-  filter(value > 0) |>
-  filter(emp_size_class %in% c("n1000", "n500_999")) |> # 1000 or more employees
-  
-  mutate(emp_size_class = as.ordered(emp_size_class),
-         naics_abbr = fct_lump(naics_abbr, n = 8, w = value))
-
-data_for_plot |>
-  filter(naics_abbr != "Other",
-         ) |>
-  ggplot() +
-  geom_line(aes(x = year, y = value, color = naics_abbr, group = naics_abbr),
-           linewidth = 0.4, alpha = 0.6) +
-  facet_wrap( ~ emp_size_class, scales = "free_y") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-        ) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Percent of establishments with 1000\nor more employees 2001-2021",
-    subtitle = glue(
-      "Including next-lowest class 500-900 for comparison",
-      "\nTop 8 sectors in largest 10 largest counties by employment (in 2021) as reported in CBP"),
-    x = "",
-    y = "Number of establishments",
-    color = NULL,
-    caption = my_caption
-  )
-  
-
-```
 
 <br>
 
