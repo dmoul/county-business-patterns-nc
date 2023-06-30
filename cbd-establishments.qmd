@@ -76,9 +76,8 @@ d_naics_ref_2021 <- read_csv("./data/ref/naics2017.txt",
          naics_descr = str_replace_all(naics_descr, "&", "and"))
 
 
-# assume file exists (that cbd-employment-wages.qmd has been run at least once)
+# assume processed data files exist (that cbd-employment-wages.qmd has been run at least once)
 d_cbp_data <- read_rds("./data/processed/cbp_nc_sector_totals_2001_2021.rds")
-
 d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021.rds")
 
 ```
@@ -112,11 +111,7 @@ d_total_est_county <- d_cbp_data |>
             n100_249 = sum(n100_249, na.rm = TRUE),
             n250_499 = sum(n250_499, na.rm = TRUE),
             n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE), # 1000 and above; remove if using n1000_*
-            # n1000_1 = sum(n1000_1, na.rm = TRUE),
-            # n1000_2 = sum(n1000_2, na.rm = TRUE),
-            # n1000_3 = sum(n1000_3, na.rm = TRUE),
-            # n1000_4 = sum(n1000_4, na.rm = TRUE),
+            n1000 = sum(n1000, na.rm = TRUE),
             .by = c(year, fipscty))
 
 d_sector_totals_county_nc <- d_cbp_data |>
@@ -145,11 +140,7 @@ d_total_est_emp_state_nc <- d_cbp_data_state |>
             n100_249 = sum(n100_249, na.rm = TRUE),
             n250_499 = sum(n250_499, na.rm = TRUE),
             n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE), # 1000 and above; remove if using n1000_*
-            # n1000_1 = sum(n1000_1, na.rm = TRUE),
-            # n1000_2 = sum(n1000_2, na.rm = TRUE),
-            # n1000_3 = sum(n1000_3, na.rm = TRUE),
-            # n1000_4 = sum(n1000_4, na.rm = TRUE),
+            n1000 = sum(n1000, na.rm = TRUE),
             .by = c("year")) |>
   pivot_longer(n1_4:n1000,
                names_to = "emp_size_class",
@@ -171,60 +162,14 @@ d_sector_totals_state_nc <- d_cbp_data_state |>
   inner_join(d_naics_abbr_ref,
              by = "naics_descr")
 
-# d_sector_totals_state <- d_sector_totals_county_nc |>
-#   summarize(est = sum(est, na.rm = TRUE),
-#             n1_4 = sum(n1_4, na.rm = TRUE),
-#             n5_9 = sum(n5_9, na.rm = TRUE),
-#             n10_19 = sum(n10_19, na.rm = TRUE),
-#             n20_49 = sum(n20_49, na.rm = TRUE),
-#             n50_99 = sum(n50_99, na.rm = TRUE),
-#             n100_249 = sum(n100_249, na.rm = TRUE),
-#             n250_499 = sum(n250_499, na.rm = TRUE),
-#             n500_999 = sum(n500_999, na.rm = TRUE),
-#             n1000 = sum(n1000, na.rm = TRUE), # 1000 and above; remove if using n1000_*
-#             n1000_1 = sum(n1000_1, na.rm = TRUE),
-#             n1000_2 = sum(n1000_2, na.rm = TRUE),
-#             n1000_3 = sum(n1000_3, na.rm = TRUE),
-#             n1000_4 = sum(n1000_4, na.rm = TRUE),
-#             .by = c(year, naics, naics_abbr, naics_descr))
-
-# d_state_totals <- d_sector_totals_state |>
-#   summarize(est = sum(est, na.rm = TRUE),
-#             n1_4 = sum(n1_4, na.rm = TRUE),
-#             n5_9 = sum(n5_9, na.rm = TRUE),
-#             n10_19 = sum(n10_19, na.rm = TRUE),
-#             n20_49 = sum(n20_49, na.rm = TRUE),
-#             n50_99 = sum(n50_99, na.rm = TRUE),
-#             n100_249 = sum(n100_249, na.rm = TRUE),
-#             n250_499 = sum(n250_499, na.rm = TRUE),
-#             n500_999 = sum(n500_999, na.rm = TRUE),
-#             n1000 = sum(n1000, na.rm = TRUE), # 1000 and above; remove if using n1000_*
-#             n1000_1 = sum(n1000_1, na.rm = TRUE),
-#             n1000_2 = sum(n1000_2, na.rm = TRUE),
-#             n1000_3 = sum(n1000_3, na.rm = TRUE),
-#             n1000_4 = sum(n1000_4, na.rm = TRUE),
-#             .by = c(year)
-#             ) |>
-#   pivot_longer(n1_4:n1000_4,
-#                names_to = "emp_size_class",
-#                values_to = "value") |>
-#   filter(emp_size_class != "n1000") |>
-#   mutate(emp_size_class = as_factor(est_emp_size_class_levels),
-#          emp_size_class = as.ordered(emp_size_class),
-#          pct = value / sum(value),
-#          .by = "year") |>
-#   filter(value > 0)
-
-# TODO: choose correct starting data
-d_totals_usa <- d_cbp_data_state |>
+d_total_est_emp_usa <- d_cbp_data_state |>
   #filter(fipstate == "37") |>
-  #mutate(avg_wage = (ap * 1000) / emp) |>
-  # inner_join(d_fips_state_ref,
-  #            by = c("fipstate")) |>
-  # inner_join(d_naics_ref_2021,
-  #            by = "naics") |>
-  # inner_join(d_naics_abbr_ref,
-  #            by = "naics_descr") |>
+  inner_join(d_fips_state_ref,
+             by = c("fipstate")) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
   summarize(est = sum(est, na.rm = TRUE),
             n1_4 = sum(n1_4, na.rm = TRUE),
             n5_9 = sum(n5_9, na.rm = TRUE),
@@ -234,19 +179,46 @@ d_totals_usa <- d_cbp_data_state |>
             n100_249 = sum(n100_249, na.rm = TRUE),
             n250_499 = sum(n250_499, na.rm = TRUE),
             n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE), # 1000 and above; remove if using n1000_*
-            # n1000_1 = sum(n1000_1, na.rm = TRUE),
-            # n1000_2 = sum(n1000_2, na.rm = TRUE),
-            # n1000_3 = sum(n1000_3, na.rm = TRUE),
-            # n1000_4 = sum(n1000_4, na.rm = TRUE),
-            .by = c(year)
-            ) |>
+            n1000 = sum(n1000, na.rm = TRUE),
+            .by = c("year")) |>
   pivot_longer(n1_4:n1000,
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
   mutate(emp_size_class = as_factor(est_emp_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
+         pct = value / sum(value),
+         .by = "year") |>
+  filter(value > 0)
+
+# TODO: choose correct starting data
+d_totals_usa <- d_cbp_data_state |>
+  #filter(fipstate == "37") |>
+  #mutate(avg_wage = (ap * 1000) / emp) |>
+  inner_join(d_fips_state_ref,
+             by = c("fipstate")) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  summarize(est = sum(est, na.rm = TRUE),
+            n1_4 = sum(n1_4, na.rm = TRUE),
+            n5_9 = sum(n5_9, na.rm = TRUE),
+            n10_19 = sum(n10_19, na.rm = TRUE),
+            n20_49 = sum(n20_49, na.rm = TRUE),
+            n50_99 = sum(n50_99, na.rm = TRUE),
+            n100_249 = sum(n100_249, na.rm = TRUE),
+            n250_499 = sum(n250_499, na.rm = TRUE),
+            n500_999 = sum(n500_999, na.rm = TRUE),
+            n1000 = sum(n1000, na.rm = TRUE),
+            .by = c("year", "naics", "naics_descr")
+            ) |>
+  pivot_longer(n1_4:n1000,
+               names_to = "emp_size_class",
+               values_to = "value") |>
+  #filter(emp_size_class != "n1000") |>
+  mutate(#emp_size_class = as_factor(est_emp_size_class_levels),
+         #emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
   filter(value > 0)
@@ -259,7 +231,7 @@ For simplicity's sake, the plots below that reference sectors use the sector abb
 
 <br>
 
-## Number of establishments and workers per employee size class in NC
+## Number of establishments in NC
 
 As one might expect, there are many more establishments with a small number of employees. Each subsequent employee size class includes fewer establishments.
 
@@ -313,6 +285,103 @@ p1 + p2 +
 ```
 
 <br>
+
+How does NC compare to the USA as a whole in the distribution of establishments? In general, quite similar.
+
+```{r fig.height=6, fig.width=8}
+#| label: fig-state-establishments-by-sector-pct-usa-compare
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "NC establishements by sector compared to USA 2021"
+
+xx_nc <- d_cbp_data_state |>
+  filter(fipstate == "37",
+         naics != "------") |> 
+  select(year, naics, est) |>
+  summarize(est = sum(est),
+            .by = c("year", "naics")) |>
+  mutate(est_pct = est / sum(est),
+         .by = c("year"))
+
+xx_usa <- d_cbp_data_state |>
+  filter(naics != "------") |> 
+  select(year, naics, est) |>
+  summarize(est = sum(est),
+            .by = c("year", "naics")) |>
+  mutate(est_pct = est / sum(est),
+         .by = c("year"))
+
+nc_naics_abbr_levels <- xx_nc |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  filter(year == 2021) |>
+  arrange(est_pct) |>
+  pull(naics_abbr)
+
+data_for_plot <- xx_nc |>
+  filter(year == 2021) |>
+  mutate(scope = "nc") |>
+  bind_rows(xx_usa |>
+              filter(year == 2021) |>
+              mutate(scope = "usa")
+            ) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  select(-c(naics_abbr_num)) |>
+  mutate(naics_abbr = factor(naics_abbr, levels = nc_naics_abbr_levels)) |>
+  mutate(low_value = min(est_pct),
+         high_value = max(est_pct),
+         .by = naics_abbr) |>
+  mutate(diff_pct = high_value - low_value,
+         diff_pct = if_else(est_pct == high_value, diff_pct, -1 * diff_pct)) 
+
+diff_pct_cutoff <- 0.005
+
+data_for_plot |>
+  ggplot() +
+  geom_segment(aes(x = low_value, xend = high_value, y = naics_abbr, yend = naics_abbr),
+               alpha = 0.3) +
+  geom_point(aes(x = est_pct, y = naics_abbr, color = scope),
+           alpha = 0.6) + 
+  geom_point(aes(x = est_pct, y = naics_abbr, color = scope),
+           alpha = 0.6) + 
+  geom_text(aes(x = high_value, y = naics_abbr,
+                label = if_else(diff_pct > diff_pct_cutoff,
+                                percent(est_pct, accuracy = .1),
+                                NA_character_)),
+            na.rm = TRUE, size = 3,
+            hjust = 0, nudge_x = 0.003) +
+  geom_text(aes(x = low_value, y = naics_abbr,
+                label = if_else(diff_pct < -1 * diff_pct_cutoff,
+                                percent(est_pct, accuracy = .1),
+                                NA_character_)),
+            na.rm = TRUE, size = 3,
+            hjust = 1, nudge_x = -0.003) +
+  scale_x_continuous(labels = label_percent()) +
+  scale_color_manual(values = c(carolina_blue, "firebrick")) +
+  theme(legend.position = c(0.8, 0.4),
+        legend.box.background = element_rect(fill = "grey80")) +
+  labs(
+    title = "NC establishments by sector\ncompared to USA 2021",
+    subtitle = glue("Includes all 100 counties and 'Statewide'", 
+                    "; showing percentages where difference is > {percent(diff_pct_cutoff, accuracy = 0.1)}"),
+    x = "Establishements",
+    y = "",
+    color = NULL,
+    caption = my_caption
+  )
+
+```
+
+***TODO: compare the following plots to what exists in cbd-employment-wages.qmd. Should I be focusing on establishments here instead?***
+
+<b>
+
+## Number of workers per employee size class in NC
 
 Let's assume that the average number of workers in each employment size class is about the midpoint of the class. From the perspective of workers, what are the most common employer size classes? Let's guess that the midpoint for `n1000` is 2,000.
 
