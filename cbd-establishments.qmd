@@ -83,82 +83,6 @@ d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021
 
 ```
 
-The data includes "noise flags". Noise is larger where numbers are lower. The state total is reported along with employee size class. If we sum the smaller employee categories, how far are the results from teh reported totals?
-
-
-```{r fig.height=8, fig.width=10}
-#| label: fig-establishments-employee-count-quality-check
-#| fig-height: 8
-#| fig-width: 10
-#| fig-cap: "Number of employees - quality check"
-
-data_for_plot <- d_cbp_data_state |>
-  select(year, fipstate, naics,
-         starts_with("e"),
-         -ends_with(c("F")),
-         -est) |>
-  rowwise() |>
-  mutate(emp_sum = sum(c_across(e1_4:e1000)),
-         diff = emp - emp_sum,
-         pct = diff/emp) |>
-  filter(emp > 0,
-         !naics %in% c("99----")) # exclude 'OtherInd'
-
-n_no_cat_values <- data_for_plot |>
-  filter(pct == 1) |>
-  nrow()
-
-n_no_error <- data_for_plot |>
-  filter(pct == 0) |>
-  nrow()
-
-all_rows <- nrow(data_for_plot)
-
-data_for_plot |>
-  ggplot() +
-  geom_point(aes(x = emp, y = pct, color = year),
-             alpha = 0.4, size = 0.4, na.rm = TRUE) +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-  scale_y_continuous(labels = label_percent()) +
-  scale_color_viridis_c(end = 0.85) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Pct diff from reported number of employees (all states)",
-    subtitle = glue("{comma(all_rows)} data points 2001-2021;",
-                    "; 'pct diff' cacluated as (stated - summed) / stated",
-                    "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
-                    "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)"),
-    x = "Employees (log10 scale)",
-    y = "Pct diff from stated",
-    caption = my_caption
-  )
-
-data_for_plot |>
-  mutate(magnitude = floor(log10(emp))) |>
-  filter(magnitude >= 2) |>
-  ggplot() +
-  stat_ecdf(aes(pct, color = magnitude, group = magnitude),
-            pad = FALSE, linewidth = 1, alpha = 0.6) +
-  # geom_point(aes(x = emp, y = pct, color = year),
-  #            alpha = 0.4, size = 0.4, na.rm = TRUE) +
-  scale_x_continuous(labels = label_percent()) +
-  scale_y_continuous(labels = label_percent()) +
-  scale_color_viridis_c(end = 0.85) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Cumulative distribution\nAs expected: smaller numbers have more error",
-    subtitle = glue("{comma(all_rows)} data points 2001-2021 (all states)",
-                    "; excluding NAICS 'OtherInd' and any category with < 100 employees reported that year",
-                    "\n'pct diff' calculated as (stated - summed) / stated",
-                    "\nmagnitude calculated as floor(log10(number_of_employees_in_state_for_a_naics_category))"),
-    x = "Pct diff from stated",
-    y = "Pct of all data points of one magnitude",
-    color = "Magnitude\n(10^M)",
-    caption = my_caption
-  )
-
-```
-
 ```{r}
 est_emp_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_249", "n250_499", "n500_999", 
                      "n1000")
@@ -329,13 +253,15 @@ d_totals_usa <- d_cbp_data_state |>
 
 ```
 
-The County Business Patterns data includes counts of establishments by number of workers. The category names embed the range. For example, `n1_4` includes establishments reporting 1-4 workers. Establishments in `n1000` have 1,000 or more employees.
+The County Business Patterns data includes counts of establishments by number of workers. The category names embed the range. For example, `n1_4` includes establishments reporting 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
+
+For simplicity's sake, the plots below that reference sectors use the sector abbreviations listed in @sec-tables.
 
 <br>
 
 ## Number of establishments and workers per employee size class in NC
 
-For simplicity's sake, the plots below that reference sectors use the sector abbreviations listed in @sec-tables.
+As one might expect, there are many more establishments with a small number of employees. Each subsequent employee size class includes fewer establishments.
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-establishments-two-plot
@@ -388,7 +314,9 @@ p1 + p2 +
 
 <br>
 
-Let's assume that the average number of workers in each employment size class is about the midpoint of the class. From the perspective of workers, what are the most common employer size classes?
+Let's assume that the average number of workers in each employment size class is about the midpoint of the class. From the perspective of workers, what are the most common employer size classes? Let's guess that the midpoint for `n1000` is 2,000.
+
+In this way we can look at the experience of a random employee in NC: what size employer might they work for? Perhaps unexpectedly, the employee is more likely to work for a company employing 1000+ than for an employer with 1-4 employees. About half of all employees in work or organizations that employ between 20 and 249.
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-workers
@@ -403,8 +331,7 @@ p1 <- d_total_est_emp_state_nc |>
              by = "emp_size_class") |>
   mutate(emp = value * emp_class_count,
          pct_emp = emp / sum(emp)) |>
-  #mutate(emp_size_class = fct_reorder(emp_size_class, factor_order)) |> # -emp)) |> # reverse factors for plotting
-  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels)) |> # -emp)) |> # reverse factors for plotting
+  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels)) |>
   ggplot() +
   geom_col(aes(x = pct_emp, y = emp_size_class),
            fill = carolina_blue, alpha = 0.6) +
@@ -462,7 +389,6 @@ data_for_plot <- d_sector_totals_state_nc |>
   pivot_longer(n1_4:n1000,
                names_to = "emp_size_class",
                values_to = "value") |>
-  #filter(emp_size_class != "n1000") |>
   mutate(pct = value / sum(value),
          .by = "year") |>
   filter(value > 0) |>
@@ -670,6 +596,84 @@ data_for_plot |>
 ***TODO: Does the above graph tell us anything interesting? If not delete.***
 
 <br>
+
+## Aside: Noise added to CBD data to protect confidentiality
+
+Since the US Census is statutorily required to avoid disclosing data that can be tied to an individual employer^[<https://www.census.gov/programs-surveys/cbp/technical-documentation/methodology.html> ], the CBP data includes noise, and the noise is larger (in percentage terms) where numbers are lower. CPB reports state totals along with totals by employee size class. If we sum the smaller employee categories, how far different are the results from the reported state totals?
+
+```{r fig.height=8, fig.width=10}
+#| label: fig-establishments-employee-count-quality-check
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Quality check: number of employees in NAICS category and amount of error"
+
+data_for_plot <- d_cbp_data_state |>
+  filter(emp > 99) |>
+  select(year, fipstate, naics,
+         starts_with("e"),
+         -ends_with(c("F")),
+         -est) |>
+  rowwise() |>
+  mutate(emp_sum = sum(c_across(e1_4:e1000)),
+         diff = emp - emp_sum,
+         pct = diff/emp)
+
+n_no_cat_values <- data_for_plot |>
+  filter(pct == 1) |>
+  nrow()
+
+n_no_error <- data_for_plot |>
+  filter(pct == 0) |>
+  nrow()
+
+all_rows <- nrow(data_for_plot)
+
+# data_for_plot |>
+#   ggplot() +
+#   geom_point(aes(x = emp, y = pct, color = year),
+#              alpha = 0.4, size = 0.4, na.rm = TRUE) +
+#   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+#   scale_y_continuous(labels = label_percent()) +
+#   scale_color_viridis_c(end = 0.85) +
+#   guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+#   labs(
+#     title = "Pct diff from reported number of employees (all states)",
+#     subtitle = glue("{comma(all_rows)} data points 2001-2021;",
+#                     "; 'pct diff' calculated as (stated - summed) / stated",
+#                     "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
+#                     "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)"),
+#     x = "Employees (log10 scale)",
+#     y = "Pct diff from stated",
+#     caption = my_caption
+#   )
+
+data_for_plot |>
+  mutate(magnitude = floor(log10(emp))) |>
+  filter(magnitude >= 2) |>
+  ggplot() +
+  stat_ecdf(aes(pct, color = magnitude, group = magnitude),
+            pad = FALSE, linewidth = 1, alpha = 0.6) +
+  scale_x_continuous(labels = label_percent()) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_color_viridis_c(end = 0.85) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "As expected: cumulative distributions show\nsmaller numbers include more error",
+    subtitle = glue("{comma(all_rows)} data points 2001-2021 (all US states)",
+                    "; excluding any category with < 100 employees reported that year",
+                    "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
+                    "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)",
+                    "\n'pct diff' calculated as (stated - summed) / stated",
+                    "\nmagnitude calculated as floor(log10(number_of_employees_in_state_in_naics_summary_category))"),
+    x = "Pct diff from stated",
+    y = "Pct of all data points of one magnitude",
+    color = "Magnitude\n(10^M)",
+    caption = my_caption
+  )
+
+```
+
+
 
 ```{r}
 knitr::knit_exit()
