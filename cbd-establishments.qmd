@@ -377,128 +377,96 @@ data_for_plot |>
 
 ```
 
-***TODO: compare the following plots to what exists in cbd-employment-wages.qmd. Should I be focusing on establishments here instead?***
-
-<b>
-
-## Number of workers per employee size class in NC
-
-Let's assume that the average number of workers in each employment size class is about the midpoint of the class. From the perspective of workers, what are the most common employer size classes? Let's guess that the midpoint for `n1000` is 2,000.
-
-In this way we can look at the experience of a random employee in NC: what size employer might they work for? Perhaps unexpectedly, the employee is more likely to work for a company employing 1000+ than for an employer with 1-4 employees. About half of all employees in work or organizations that employ between 20 and 249.
-
-```{r fig.height=6, fig.width=12}
-#| label: fig-state-workers
-#| fig-height: 6
-#| fig-width: 12
-#| fig-cap: "NC workers in each employee size class 2021"
-#| column: page-inset-right
-
-p1 <- d_total_est_emp_state_nc |>
-  filter(year == 2021) |>
-  inner_join(n_employees_ref,
-             by = "emp_size_class") |>
-  mutate(emp = value * emp_class_count,
-         pct_emp = emp / sum(emp)) |>
-  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels)) |>
-  ggplot() +
-  geom_col(aes(x = pct_emp, y = emp_size_class),
-           fill = carolina_blue, alpha = 0.6) +
-  scale_x_continuous(labels = label_percent()) +
-  scale_y_discrete(limits=rev) +
-  labs(
-    x = "Percent of employees",
-    y = "Employee size class",
-    color = NULL,
-  )
-
-p2 <- d_total_est_emp_state_nc |>
-  filter(year == 2021) |>
-  inner_join(n_employees_ref,
-             by = "emp_size_class") |>
-  mutate(emp = value * emp_class_count,
-         pct_emp = emp / sum(emp)) |>
-  mutate(emp_size_class = fct_reorder(emp_size_class, pct_emp)) |>
-  arrange(desc(emp_size_class)) |>
-  mutate(cum_pct_emp = cumsum(pct_emp),
-         ybar_start = lag(cum_pct_emp, default = 0)) |>
-  ggplot() +
-  geom_segment(aes(x = emp_size_class, xend = emp_size_class, y = ybar_start, yend = cum_pct_emp),
-           color = carolina_blue, linewidth = 8, alpha = 0.6) + 
-  scale_y_continuous(labels = label_percent()) +
-  scale_x_discrete(limits=rev) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(
-    x = "Employee size class",
-    y = "Percent of employees",
-    color = NULL,
-  )
-
-p1 + p2 +
-  plot_annotation(
-    title = "Percent of NC employees working for establishments\nin each employee size class",
-    subtitle = "2021; includes all sectors reported in CBP",
-    caption = my_caption,
-    #theme = theme(plot.title = element_text(size = 16))
-  )
-  
-```
-
 <br>
 
-```{r fig.height=6, fig.width=12}
-#| label: fig-state-establishments-employees-naics-pct-two-plot
-#| fig-height: 6
+```{r fig.height=8, fig.width=12}
+#| label: fig-state-establishments-naics-pct-two-plot
+#| fig-height: 8
 #| fig-width: 12
-#| fig-cap: "Percent of NC workers in each employee size class by sector 2021"
+#| fig-cap: "Percent of NC establishments in each employee size class by sector 2021"
 #| column: page-inset-right
 
-data_for_plot <- d_sector_totals_state_nc |>
-  #filter(year == 2021) |>
+data_for_plot <-  d_cbp_data_state |>
+  filter(#year == 2021,
+         fipstate == "37",
+         naics != "------") |>
+  select(year, fipstate, naics,
+         est,
+         starts_with("n"),
+         -ends_with(c("F")),
+         -emp) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  select(-c(naics_abbr_num)) |>
   pivot_longer(n1_4:n1000,
-               names_to = "emp_size_class",
+               names_to = "est_size_class",
                values_to = "value") |>
-  mutate(pct = value / sum(value),
-         .by = "year") |>
-  filter(value > 0) |>
-  inner_join(n_employees_ref,
-             by = "emp_size_class") |>
-  mutate(emp_in_size_class = value * emp_class_count,
-         pct_emp_in_size_class = emp_in_size_class / sum(emp_in_size_class),
-         .by = "year") |>
-  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels),
-         emp_size_class = as.ordered(emp_size_class),
-         naics_abbr = fct_lump(naics_abbr, n = 9, w = pct_emp_in_size_class )) 
+  mutate(#naics_abbr = fct_lump(naics_abbr, 9, w = value),
+         est_size_class = factor(est_size_class, levels = est_emp_size_class_levels)) |>
+  mutate(pct_est = value / sum(value),
+         .by = c("year"))
 
 p1 <- data_for_plot |>
   filter(year == 2021) |>
+  mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
   ggplot() +
-  geom_col(aes(x = pct_emp_in_size_class, y = emp_size_class, fill = naics_abbr),
-           alpha = 0.6) +
+  geom_col(aes(x = pct_est, y = est_size_class, fill = naics_abbr),
+           alpha = 0.6, show.legend = FALSE) +
   scale_x_continuous(labels = label_percent(accuracy = 1)) +
   scale_y_discrete(limits=rev) +
   labs(
-    x = "Percent of employees",
+    x = "Percent of establishments",
     y = "Employee size class",
     color = NULL
   )
 
 p2 <- data_for_plot |>
   filter(year == 2021) |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, -pct_emp_in_size_class, sum)) |>
+  mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
   ggplot() +
-  geom_col(aes(x = naics_abbr, y = pct_emp_in_size_class, fill = emp_size_class),
-           alpha = 0.6) +
-  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  geom_col(aes(x = pct_est, y = est_size_class, fill = naics_abbr),
+           alpha = 0.6, position = position_fill()) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_y_discrete(limits=rev) +
   labs(
-    x = NULL,
-    y = "Percent of employees",
+    x = "Distribution of size classes",
+    y = "Employee size class",
     color = NULL
   )
 
-p1 + p2 +
+p3 <- data_for_plot |>
+  filter(year == 2021) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, pct_est, sum)) |>
+  ggplot() +
+  geom_col(aes(y = naics_abbr, x = pct_est, fill = est_size_class),
+           alpha = 0.6, show.legend = FALSE) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_viridis_d(end = 0.85) +
+  labs(
+    x = "Percent of establishments",
+    y = NULL,
+    color = NULL
+  )
+
+p4 <- data_for_plot |>
+  filter(year == 2021) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, pct_est, sum)) |>
+  ggplot() +
+  geom_col(aes(y = naics_abbr, x = pct_est, fill = est_size_class),
+           alpha = 0.6,position = position_fill()) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_viridis_d(end = 0.85) +
+  labs(
+    x = "Distribution of NAICS categories",
+    y = NULL,
+    color = NULL
+  )
+
+(p1 + p2) / (p3 + p4) +
   plot_annotation(
-    title = "Percent of NC workers in each employee size class by sector",
+    title = "Percent of NC establishments in each employee size class by sector",
     subtitle = "2021; includes all sectors reported in CBP",
     caption = my_caption
   )
@@ -507,36 +475,31 @@ p1 + p2 +
 
 <br>
 
-The portion of employees in each employee class size varies over time and across sectors. Decade-long trends are visible: 
-
-* The share of employees in the Accommodation and Food sector has been increasing in most employee size classes
-* The share in Manufacturing has been in noticable decline, especially through 2015 and in the larger employee size classes
-* Construction slowed significantly after the 2008 financial crisis.
-
-In the HealthSoc, Retail, and ProfSciTec sectors there are cases of big changes from one year to the next in multiple employee size classes. I wonder if this is due to changes in NAICS categories, changes in measurement methodology, or a real change in that sector.
-
-Noise added to some data before release may be the cause of the jumpiness in some of the least common employee size classes.
+How has the portion of establishments changed over time?
 
 ```{r fig.height=8, fig.width=10}
-#| label: fig-state-establishments-employees-naics-pct-timeseries
+#| label: fig-state-establishments-pct-timeseries
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: "Percent of NC workers in each employee size class by sector"
+#| fig-cap: "Percent of NC establishments by employee size class 2001-2021 for top sectors"
 #| column: page-inset-right
 
+# TODO: should I lump on 2021 top sectors? (currently considering whole time range)
+
 data_for_plot |>
+  mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
   filter(naics_abbr != "Other") |>
   ggplot() +
-  geom_line(aes(x = year, y = pct_emp_in_size_class, color = emp_size_class, group = emp_size_class),
+  geom_line(aes(x = year, y = pct_est, color = est_size_class, group = est_size_class),
            linewidth = 0.4, alpha = 0.6) +
   scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
   facet_wrap(. ~ naics_abbr, scales = "free_y") +
   guides(color = guide_legend(override.aes = c(linewidth = 3))) +
   labs(
-    title = "Percent of NC workers in each employee size class\nby sector 2001-2021",
-    subtitle = "Top 9 sectors by number of employees (in 2021) as reported in CBP",
+    title = "Percent of NC establishements in each employee size class\nby sector 2001-2021",
+    subtitle = "Top 9 sectors by number of establishments (in 2021) as reported in CBP",
     x = "",
-    y = "Percent of employees (scale varies)",
+    y = "Percent of establishments (scale varies)",
     color = NULL,
     caption = my_caption
   )
@@ -544,205 +507,6 @@ data_for_plot |>
 ```
 
 <br>
-
-There is variation across counties too.
-
-```{r fig.height=12, fig.width=10}
-#| label: fig-county-naics-establishments-time-series-pct
-#| fig-height: 12
-#| fig-width: 10
-#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
-#| column: page-inset-right
-
-data_for_plot <- d_sector_totals_county_nc |>
-  #filter(year == 2021) |>
-  pivot_longer(n1_4:n1000,
-               names_to = "emp_size_class",
-               values_to = "value") |>
-  #filter(emp_size_class != "n1000") |>
-  mutate(pct = value / sum(value),
-         .by = c("year", "county_name")) |>
-  filter(value > 0) |>
-  inner_join(n_employees_ref,
-             by = "emp_size_class") |>
-  mutate(emp_in_size_class = value * emp_class_count,
-         pct_emp_in_size_class = emp_in_size_class / sum(emp_in_size_class),
-         .by = c("year", "county_name")) |>
-  mutate(emp_size_class = factor(emp_size_class, est_emp_size_class_levels),
-         emp_size_class = as.ordered(emp_size_class),
-         naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp_in_size_class ),
-         county_name = fct_lump(county_name, n = 10, w = emp)) 
-
-data_for_plot |>
-  filter(naics_abbr != "Other",
-         county_name != "Other") |>
-  ggplot() +
-  geom_line(aes(x = year, y = pct_emp_in_size_class, color = emp_size_class, group = emp_size_class),
-           linewidth = 0.4, alpha = 0.6) +
-  scale_y_continuous(labels = label_percent(accuracy = 0.01)) +
-  facet_grid(county_name ~ naics_abbr, scales = "free_y") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Percent of workers in each employee size class\nby sector and county 2001-2021",
-    subtitle = "Top 8 sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
-    x = "",
-    y = "Percent of employees (scale varies by row)",
-    color = NULL,
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
-## Establisments and employee size class
-
-TODO: MOVE THIS LATER
-
-Employee counts with simple categories
-
-* tiny: 0-4 employees
-* small: 5-49
-* medium: 50-499
-* large 500 or more
-
-***TODO: perhaps use "percent of county workers" on X axis***
-
-```{r fig.height=8, fig.width=10}
-#| label: fig-establishments-employee-count
-#| fig-height: 8
-#| fig-width: 10
-#| fig-cap: "Number of employees"
-
-data_for_plot <- d_sector_totals_county_nc |>
-  filter(year == 2021) |> 
-  select(county_name, naics_descr, est, n1_4:n1000_4, -n1000) |>
-  filter(est > 0) |>
-  pivot_longer(n1_4:n1000_4,
-               names_to = "emp_size_class",
-               values_to = "value") |>
-  filter(value > 0) |>
-  mutate(pct = value / sum(value),
-         .by = county_name) |>
- left_join(n_employees_ref,
-            by = "emp_size_class") |>
-  mutate(employee_count = value * emp_class_count,
-         emp_size_class_simple = case_when(
-          emp_size_class %in% c("n1_4")                                                  ~ "tiny",
-          emp_size_class %in% c("n5_9", "n10_19", "n20_49")                              ~ "small",
-          emp_size_class %in% c("n50_99", "n100_249", "n250_499")                        ~ "medium",
-          emp_size_class %in% c("n500_999", "n1000_1", "n1000_2", "n1000_3", "n1000_4")  ~ "large",
-         ),
-         emp_size_class_simple = as.ordered(factor(emp_size_class_simple,
-                                            levels = c("tiny", "small", "medium", "large"))
-                                            )
-         ) |>
-   mutate(emp_size_class = as_factor(emp_size_class), # keeps same order as data
-         emp_size_class = as.ordered(emp_size_class),
-         )
-
-data_for_plot |>
-  ggplot() +
-  geom_point(aes(x = employee_count, y = est, color = emp_size_class_simple),
-             alpha = 0.4, size = 0.4, na.rm = TRUE) +
-  geom_smooth(aes(x = employee_count, y = est, color = emp_size_class_simple, group = emp_size_class_simple),
-              se = FALSE, formula = 'y ~ x', method = 'loess', span = 10, na.rm = TRUE) +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-  scale_y_log10() +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Number of NC establishments by number of workers 2021",
-    subtitle = "Employee classes consolidated into simple categories",
-    x = "Worker count (log10 scale)",
-    y = "Number of establishments (log10 scale)",
-    color = "Simple employee class",
-    caption = my_caption
-  )
-
-```
-
-***TODO: Does the above graph tell us anything interesting? If not delete.***
-
-<br>
-
-## Aside: Noise added to CBD data to protect confidentiality
-
-Since the US Census is statutorily required to avoid disclosing data that can be tied to an individual employer^[<https://www.census.gov/programs-surveys/cbp/technical-documentation/methodology.html> ], the CBP data includes noise, and the noise is larger (in percentage terms) where numbers are lower. CPB reports state totals along with totals by employee size class. If we sum the smaller employee categories, how far different are the results from the reported state totals?
-
-```{r fig.height=8, fig.width=10}
-#| label: fig-establishments-employee-count-quality-check
-#| fig-height: 8
-#| fig-width: 10
-#| fig-cap: "Quality check: number of employees in NAICS category and amount of error"
-
-data_for_plot <- d_cbp_data_state |>
-  filter(emp > 99) |>
-  select(year, fipstate, naics,
-         starts_with("e"),
-         -ends_with(c("F")),
-         -est) |>
-  rowwise() |>
-  mutate(emp_sum = sum(c_across(e1_4:e1000)),
-         diff = emp - emp_sum,
-         pct = diff/emp)
-
-n_no_cat_values <- data_for_plot |>
-  filter(pct == 1) |>
-  nrow()
-
-n_no_error <- data_for_plot |>
-  filter(pct == 0) |>
-  nrow()
-
-all_rows <- nrow(data_for_plot)
-
-# data_for_plot |>
-#   ggplot() +
-#   geom_point(aes(x = emp, y = pct, color = year),
-#              alpha = 0.4, size = 0.4, na.rm = TRUE) +
-#   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-#   scale_y_continuous(labels = label_percent()) +
-#   scale_color_viridis_c(end = 0.85) +
-#   guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-#   labs(
-#     title = "Pct diff from reported number of employees (all states)",
-#     subtitle = glue("{comma(all_rows)} data points 2001-2021;",
-#                     "; 'pct diff' calculated as (stated - summed) / stated",
-#                     "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
-#                     "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)"),
-#     x = "Employees (log10 scale)",
-#     y = "Pct diff from stated",
-#     caption = my_caption
-#   )
-
-data_for_plot |>
-  mutate(magnitude = floor(log10(emp))) |>
-  filter(magnitude >= 2) |>
-  ggplot() +
-  stat_ecdf(aes(pct, color = magnitude, group = magnitude),
-            pad = FALSE, linewidth = 1, alpha = 0.6) +
-  scale_x_continuous(labels = label_percent()) +
-  scale_y_continuous(labels = label_percent()) +
-  scale_color_viridis_c(end = 0.85) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "As expected: cumulative distributions show\nsmaller numbers include more error",
-    subtitle = glue("{comma(all_rows)} data points 2001-2021 (all US states)",
-                    "; excluding any category with < 100 employees reported that year",
-                    "\n{comma(n_no_cat_values)} ({percent(n_no_cat_values / all_rows)}) report no category values (only state-level value)",
-                    "\n{comma(n_no_error)} ({percent(n_no_error / all_rows)}) report no error (category values sum to state-level value)",
-                    "\n'pct diff' calculated as (stated - summed) / stated",
-                    "\nmagnitude calculated as floor(log10(number_of_employees_in_state_in_naics_summary_category))"),
-    x = "Pct diff from stated",
-    y = "Pct of all data points of one magnitude",
-    color = "Magnitude\n(10^M)",
-    caption = my_caption
-  )
-
-```
-
-
 
 ```{r}
 knitr::knit_exit()
@@ -750,360 +514,4 @@ knitr::knit_exit()
 ```
 
 <br>
-
-```{r}
-top_naics_cutoff <- 5
-
-top_naics <- d_sector_totals_state |>
-  filter(year == 2021) |>
-  slice_max(order_by = emp, n = top_naics_cutoff) |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, emp),
-         naics_sort_order = row_number()) |>
-  select(naics, naics_abbr, naics_sort_order)
-
-top_county_cutoff <- 10
-
-top_counties_emp <- d_sector_totals_county_nc |>
-  filter(year == 2021) |>
-  summarize(emp_sum = sum(emp),
-            .by = county_name) |>
-  slice_max(order_by = emp_sum, n = top_county_cutoff)
-  
-```
-
-## NC employment by sector
-
-For simplicity's sake, the plots below use sector abbreviations listed in @sec-tables.
-
-```{r fig.height=6, fig.width=8}
-#| label: fig-state-employment-by-sector-count
-#| fig-height: 5
-#| fig-width: 7
-#| fig-cap: "NC state employment by sector 2021"
-
-d_sector_totals_state |>
-  filter(year == 2021) |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, emp)) |>
-  ggplot() +
-  geom_col(aes(x = emp, y = naics_abbr),
-           fill = carolina_blue, alpha = 0.6) + # carolina_blue is Carolina blue
-  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-  labs(
-    title = "NC state employment by sector 2021",
-    #subtitle = "Includes all sectors reported in CBP in each county",
-    x = "Employees",
-    y = "",
-    color = NULL,
-    caption = my_caption
-  )
-```
-
-<br>
-
-## Top sectors in largest counties
-
-```{r}
-d_nc_2021_top5 <- d_sector_totals_county_nc |>
-  filter(year == 2021) |>
-  inner_join(top_counties_emp,
-            by = "county_name") |>
-  slice_max(order_by = emp,
-            n = 5,
-            by = "fipscty") |>
-  mutate(n_cat = n(),
-         emp_rank = n_cat + 1 - rank(emp,
-                             ties.method = "random"),.by = fipscty)
-```
-
-
-```{r fig.height=10, fig.width=14}
-#| label: fig-rank-employee-count-top-counties-pct
-#| fig-height: 8
-#| fig-width: 10
-#| fig-cap: "Sector percent of country emplyment rank"
-
-county_name_label <- d_sector_totals_county_nc |>
-  filter(year == 2021) |>
-  select(year, fipscty, emp, county_name, naics) |>
-  summarize(emp_sum = sum(emp),
-            .by = county_name) |>
-  slice_max(order_by = emp_sum, n = 10) |>
-  mutate(county_name_label = glue("{county_name}\n{comma(emp_sum)}"),
-         county_name_label = fct_reorder(county_name_label, -emp_sum))
-
-data_for_plot <- d_nc_2021_top5 |>
-  select(county_name, emp, naics, naics_descr, emp_rank) |>
-  left_join(d_naics_abbr_ref,
-             by = c("naics_descr")) |>
-  left_join(county_name_label,
-             by = c("county_name")) |>
-  mutate(pct_emp = emp / emp_sum,
-         county_name_label = fct_reorder(county_name_label, -emp, sum)) |>
-  complete(county_name_label, naics_abbr, fill = list(emp = NA, pct_emp = NA)) 
-
-data_for_plot |> 
-  ggplot() +
-  geom_line(aes(x = county_name_label, y = pct_emp, group = naics_abbr, color = naics_abbr),
-            show.legend = FALSE, na.rm = TRUE) +
-  geom_label(aes(x = county_name_label, y = pct_emp, label = naics_abbr, fill = naics_abbr),
-             show.legend = FALSE, na.rm = TRUE, alpha = 0.4, size = data_label_size) +
-  scale_x_discrete(position = "top") +
-  scale_y_continuous(labels = label_percent()) +
-  theme(axis.text.x = element_text(size = 10)) +
-  labs(
-    title = "Top 5 sectors in 10 largest counties:\npercent of county employment",
-    subtitle = glue("Ordered by total county employment reported in CBP",
-                    "; 'Statewide' refers to employees not associated with one county"),
-    x = "",
-    y = "Percent of county employment",
-    color = NULL,
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
-```{r fig.height=8, fig.width=10}
-#| label: fig-rank-employee-count-top-counties-rank
-#| fig-height: 8
-#| fig-width: 10
-#| fig-cap: "Sector rank by number of employees"
-
-data_for_plot |>
-  ggplot() +
-  geom_line(aes(x = county_name_label, y = emp_rank, group = naics_abbr, color = naics_abbr),
-            show.legend = FALSE, na.rm = TRUE) +
-  geom_label(aes(x = county_name_label, y = emp_rank, label = naics_abbr, fill = naics_abbr),
-             show.legend = FALSE, na.rm = TRUE, alpha = 0.4, size = data_label_size) +
-  scale_x_discrete(position = "top") +
-  scale_y_reverse() +
-  theme(axis.text.x = element_text(size = 10)) +
-  labs(
-    title = "Top 5 sectors in 10 largest counties: ranking",
-    subtitle = glue("Ordered by total county employment reported in CBP",
-                    "; 'Statewide' refers to workers not associated with one county"),
-    x = "",
-    y = "Rank in county employment",
-    color = NULL,
-    caption = my_caption
-  )
-  
-  
-```
-
-<br>
-
-## Trends
-
-The year over year drop in manufacturing jobs through 2012 is striking. As is the consistent growth in (1) healthcare and social services and (2) Accommodation and Food through the 21-year period.
-
-```{r}
-
-data_for_plot <- d_sector_totals_state |>
-  mutate(pct_emp = emp / sum(emp)) |>
-  inner_join(top_naics,
-             by = c("naics", "naics_abbr")) |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, emp))
-
-data_for_plot |>
-  ggplot(aes(year, emp, color  = naics_abbr)) +
-  geom_point(size = 0.6, alpha = 0.4,
-            show.legend = FALSE) +
-  geom_labelsmooth(aes(label = naics_abbr,
-                       hjust = naics_sort_order / top_naics_cutoff - 0.1),
-                   method = 'loess', formula = 'y ~ x',
-                   span = 0.95,
-                   show.legend = FALSE
-  ) +
-  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
-  guides(color = guide_legend(reverse = TRUE)) +
-  labs(
-    title = glue("NC employment trends: top {top_naics_cutoff} sectors"),
-    x = "",
-    y = "Number of employees",
-    color = "",
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
-I don't know why the average wage of utility sector works rose about 50% in 2008 only. That year no major hurricanes hit NC (which is the only likely "one year disruption" I could think of).
-
-```{r fig.height=5, fig.width=7}
-#| label: fig-rank-employee-wages-top-sectors-nominal
-#| fig-height: 5
-#| fig-width: 7
-#| fig-cap: "Sector rank by number of employees TODO: Fixme"
-
-d_infation_ref <- read_xlsx("./data/ref/us-inflation.xlsx",
-                        skip = 13)
-
-inflation_adj <- d_infation_ref$cpi[d_infation_ref$year == 2021] / d_infation_ref$cpi[d_infation_ref$year == 2001]
-d_infation_adj <- d_infation_ref |>
-  filter(year >= 2001,
-         year <= 2021) |>
-  mutate(adj = cpi[year == 2021] / cpi)
-
-top_wage <- d_sector_totals_state |>
-  filter(year == 2021) |>
-  slice_max(order_by = avg_wage, n = top_naics_cutoff) |>
-  mutate(wage_sort_order = row_number()) |>
-  select(naics, wage_sort_order)
-
-data_for_plot <- d_sector_totals_state |>
-  inner_join(top_wage,
-             by = "naics") |>
-  inner_join(d_infation_adj,
-             by = "year") |>
-  mutate(avg_wage_adjusted = avg_wage * adj)
-
-data_for_plot |>
-  ggplot(aes(year, avg_wage, color  = naics_abbr, group = naics_abbr)) +
-  geom_point(size = 0.6, alpha = 0.4,
-            show.legend = FALSE) +
-  geom_labelsmooth(aes(label = naics_abbr, 
-                       hjust = wage_sort_order / top_naics_cutoff - 0.1),
-                   method = 'loess', formula = 'y ~ x',
-                   span = 0.95,
-                   show.legend = FALSE
-  ) +
-  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
-                                           prefix = "$")) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
-  guides(color = guide_legend(reverse = TRUE)) +
-  labs(
-    title = glue("NC average wages: top {top_naics_cutoff} sectors"),
-    subtitle = glue("Nominal dollars (not adjusted for inflation)"),
-    x = "",
-    y = "",
-    color = "",
-    caption = my_caption
-  )
-
-```
-
-<br>
-
-Below is the same data in 2021 dollars, which makes visible that average wages in four of the five highest paying sectors grew faster than inflation. I wonder if the drop in the average wage of the "management sector" is due to manufacturing and financial services disruptions after the 2007-2008 financial crisis.
-
-```{r fig.height=5, fig.width=7}
-#| label: fig-rank-employee-wages-top-sectors-2021-dollars
-#| fig-height: 5
-#| fig-width: 7
-#| fig-cap: "Sector rank by number of employees TODO: Fixme"
-
-data_for_plot |>
-  ggplot(aes(year, avg_wage_adjusted, color  = naics_abbr, group = naics_abbr)) +
-  geom_point(size = 0.6, alpha = 0.4,
-            show.legend = FALSE) +
-  geom_labelsmooth(aes(label = naics_abbr, 
-                       hjust = wage_sort_order / top_naics_cutoff - 0.1),
-                   method = 'loess', formula = 'y ~ x',
-                   span = 0.95,
-                   show.legend = FALSE
-  ) +
-  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
-                                           prefix = "$")) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
-  guides(color = guide_legend(reverse = TRUE)) +
-  labs(
-    title = glue("NC average wages: top {top_naics_cutoff} sectors"),
-    subtitle = glue("In 2021 dollars"),
-    x = "",
-    y = "",
-    color = "",
-    caption = my_caption
-  )
-
-```
-
-<br>
-
-## Other topics
-
-There is no relationship between number of employees and average wage in a sector, 
-except in a few high-paying sectors where it seems over time employers hired more workers 
-and wages for the sector rose.
-
-```{r}
-d_sector_totals_county_nc |>
-  #filter(year == 2021) |>
-  filter(emp != 0) |>
-  ggplot(aes(emp, avg_wage, color = naics_abbr)) +
-  geom_point(size = 0.2, alpha = 0.2, na.rm = TRUE,
-             show.legend = FALSE) +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale(),
-                                           prefix = "$")) +
-  scale_y_log10(labels = label_number(scale_cut = cut_short_scale())) +
-  labs(
-    title = "Number of employees by average wage",
-    subtitle = glue("NC counties - CBP sectors 2001-2021; nominal dollars (not adjusted for inflation)",
-    "\nColor is associated with sector"),
-    x = "Average sector wage (log10 scale)",
-    y = "Employees in county (log10 scale)",
-    caption = my_caption
-  )
-
-```
-
-<br>
-
-## Tables {#sec-tables}
-
-Below are the sector summary categories used in the CBP. To simplify plotting, I created some abbreviations:
-
-```{r}
-d_naics_abbr_ref |>
-  select(naics_abbr, naics_descr) |>
-  arrange(naics_abbr) |>
-  mutate(rowid = row_number()) |>
-  gt() |>
-  tab_header(md(glue("**NC state sector employment 2021**",
-                     "<br>*Sum of county sector totals*"))) |>
-  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
-  tab_options(table.font.size = 10)
-  
-```
-
-Sorted by number of employees in sector:
-
-```{r}
-d_sector_totals_state |>
-  filter(year == 2021) |>
-  select(-year) |>
-  arrange(-emp) |>
-  mutate(rowid = row_number()) |>
-  gt() |>
-  tab_header(md(glue("**NC state sector employment 2021**",
-                     "<br>*Sorted by sector totals*"))) |>
-  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
-  tab_options(table.font.size = 10) |>
-  fmt_number(columns = c(emp, avg_wage), 
-             decimals = 0)
-  
-
-```
-
-Sorted by average wage:
-
-```{r}
-d_sector_totals_state |>
-  filter(year == 2021) |>
-  select(-year) |>
-  arrange(-avg_wage) |>
-  mutate(rowid = row_number()) |>
-  gt() |>
-  tab_header(md(glue("**NC state sector average wage 2021**",
-                     "<br>*Sorted by average sector wage*"))) |>
-  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
-  tab_options(table.font.size = 10) |>
-  fmt_number(columns = c(emp, avg_wage), 
-             decimals = 0)
-
-```
-
 
