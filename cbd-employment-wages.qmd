@@ -464,6 +464,25 @@ d_emp_state_nc_total_size_classes <- d_cbp_data_state |>
          .by = "year") |>
   filter(value > 0)
 
+d_emp_state_nc_size_classes <- d_cbp_data_state |>
+  filter(fipstate == "37",
+         naics != "------") |>
+  select(year, fipstate, naics, emp, starts_with("e")) |>
+  inner_join(d_fips_state_ref,
+             by = c("fipstate")) |>
+  inner_join(d_naics_ref_2021,
+             by = "naics") |>
+  inner_join(d_naics_abbr_ref,
+             by = "naics_descr") |>
+  pivot_longer(e1_4:e1000,
+               names_to = "emp_size_class",
+               values_to = "value") |>
+  mutate(emp_size_class = as_factor(emp_size_class), # keep existing order
+         emp_size_class = as.ordered(emp_size_class),
+         pct_emp = value / sum(value),
+         .by = "year") |>
+  filter(value > 0)
+
 d_est_total_usa <- d_est_emp_total_usa |> #
   filter(naics == "------") |>
   select(year, naics, naics_abbr, est, starts_with("n"))
@@ -730,6 +749,146 @@ p1 + p2 +
 <br>
 
 ***TODO: Add employment stuff from cbd-establishments-orginal.qmd***
+
+```{r fig.height=6, fig.width=12}
+#| label: fig-state-establishments-employees-naics-pct-two-plot
+#| fig-height: 6
+#| fig-width: 12
+#| fig-cap: "Percent of NC workers in each employee size class by sector 2021"
+#| column: page-inset-right
+
+data_for_plot <- d_emp_state_nc_size_classes |> #d_sector_totals_state |>
+  filter(year == 2021) |>
+  inner_join(n_employees_ref |>
+               select(-est_size_class),
+             by = "emp_size_class") |>
+  mutate(emp_size_class = factor(emp_size_class, levels = emp_size_class_levels),
+         naics_abbr = fct_lump(naics_abbr, n = 9, w = emp)) 
+
+p1 <- data_for_plot |>
+  ggplot() +
+  geom_col(aes(x = pct_emp, y = emp_size_class, fill = naics_abbr),
+           alpha = 0.6) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_y_discrete(limits=rev) +
+  labs(
+    x = "Percent of employees",
+    y = "Employee size class",
+    color = NULL
+  )
+
+p2 <- data_for_plot |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp, sum)) |> #-pct_emp, sum)) |>
+  ggplot() +
+  geom_col(aes(x = pct_emp, y = naics_abbr, fill = emp_size_class),
+           alpha = 0.6) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_viridis_d(end = 0.85) +
+  labs(
+    x = "Percent of employees",
+    y = NULL,
+    color = NULL
+  )
+
+p1 + p2 +
+  plot_annotation(
+    title = "Percent of NC workers in each employee size class by sector",
+    subtitle = "2021; includes all sectors reported in CBP",
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+The portion of employees in each employee class size varies over time and across sectors. Decade-long trends are visible: 
+
+* The share of employees in the Accommodation and Food sector has been increasing in most employee size classes
+* The share in Manufacturing has been in noticable decline, especially through 2015 and in the larger employee size classes
+* Construction slowed significantly after the 2008 financial crisis.
+
+In the HealthSoc, Retail, and ProfSciTec sectors there are cases of big changes from one year to the next in multiple employee size classes. I wonder if this is due to changes in NAICS categories, changes in measurement methodology, or a real change in that sector.
+
+Noise added to some data before release may be the cause of the jumpiness in some of the least common employee size classes.
+
+```{r fig.height=8, fig.width=10}
+#| label: fig-state-establishments-employees-naics-pct-timeseries
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Percent of NC workers in each employee size class by sector"
+#| column: page-inset-right
+
+data_for_plot |>
+  filter(naics_abbr != "Other") |>
+  ggplot() +
+  geom_line(aes(x = year, y = pct_emp_in_size_class, color = emp_size_class, group = emp_size_class),
+           linewidth = 0.4, alpha = 0.6) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
+  facet_wrap(. ~ naics_abbr, scales = "free_y") +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Percent of NC workers in each employee size class\nby sector 2001-2021",
+    subtitle = "Top 9 sectors by number of employees (in 2021) as reported in CBP",
+    x = "",
+    y = "Percent of employees (scale varies)",
+    color = NULL,
+    caption = my_caption
+  )
+
+```
+
+<br>
+
+There is variation across counties too.
+
+```{r fig.height=12, fig.width=10}
+#| label: fig-county-naics-establishments-time-series-pct
+#| fig-height: 12
+#| fig-width: 10
+#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
+#| column: page-inset-right
+
+data_for_plot <- d_sector_totals_county |>
+  #filter(year == 2021) |>
+  pivot_longer(n1_4:n1000_4,
+               names_to = "emp_size_class",
+               values_to = "value") |>
+  #filter(emp_size_class != "n1000") |>
+  mutate(pct = value / sum(value),
+         .by = c("year", "county_name")) |>
+  filter(value > 0) |>
+  inner_join(n_employees_ref,
+             by = "emp_size_class") |>
+  mutate(emp_in_size_class = value * emp_class_count,
+         pct_emp_in_size_class = emp_in_size_class / sum(emp_in_size_class),
+         .by = c("year", "county_name")) |>
+  mutate(emp_size_class = fct_reorder(emp_size_class, factor_order), # reverse factors for plotting
+         emp_size_class = as.ordered(emp_size_class),
+         naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp_in_size_class ),
+         county_name = fct_lump(county_name, n = 10, w = emp)) 
+
+data_for_plot |>
+  filter(naics_abbr != "Other",
+         county_name != "Other") |>
+  ggplot() +
+  geom_line(aes(x = year, y = pct_emp_in_size_class, color = emp_size_class, group = emp_size_class),
+           linewidth = 0.4, alpha = 0.6) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.01)) +
+  facet_grid(county_name ~ naics_abbr, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Percent of workers in each employee size class\nby sector and county 2001-2021",
+    subtitle = "Top 8 sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
+    x = "",
+    y = "Percent of employees (scale varies by row)",
+    color = NULL,
+    caption = my_caption
+  )
+  
+```
+
+<br>
 
 
 
