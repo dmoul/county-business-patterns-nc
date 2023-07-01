@@ -13,6 +13,7 @@ book:
     #- summary.qmd
     #- references.qmd
     - cbd-employment-wages.qmd
+    - cbd-establishments-original.qmd
     - cbd-establishments.qmd
     - notes.qmd
 
