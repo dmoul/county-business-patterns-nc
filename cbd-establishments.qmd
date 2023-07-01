@@ -77,25 +77,25 @@ d_naics_ref_2021 <- read_csv("./data/ref/naics2017.txt",
 
 
 # assume processed data files exist (that cbd-employment-wages.qmd has been run at least once)
-d_cbp_data <- read_rds("./data/processed/cbp_nc_sector_totals_2001_2021.rds")
+d_cbp_data_country <- read_rds("./data/processed/cbp_nc_sector_totals_2001_2021.rds")
 d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021.rds")
 
 ```
 
 ```{r}
-est_emp_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_249", "n250_499", "n500_999", 
+est_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_249", "n250_499", "n500_999", 
                      "n1000")
 
 emp_size_class_levels = c("e1_4", "e5_9", "e10_19", "e20_49", "e50_99", "e100_249", "e250_499", "e500_999", 
                      "e1000")
 
 n_employees_ref <- tibble( # note: excluding n1000
-  emp_size_class = est_emp_size_class_levels,
+  emp_size_class = est_size_class_levels,
   emp_class_count = c(2, 7, 15, 35, 75, 175, 375, 750, 2000),
   factor_order = 19
 )
 
-d_total_est_county <- d_cbp_data |>
+d_total_est_county <- d_cbp_data_country |>
   inner_join(d_fips_county_ref,
              by = c("fipstate" , "fipscty")) |>
   inner_join(d_naics_ref_2021,
@@ -114,7 +114,7 @@ d_total_est_county <- d_cbp_data |>
             n1000 = sum(n1000, na.rm = TRUE),
             .by = c(year, fipscty))
 
-d_sector_totals_county_nc <- d_cbp_data |>
+d_sector_totals_county_nc <- d_cbp_data_country |>
   mutate(avg_wage = (ap * 1000) / emp) |>
   inner_join(d_fips_county_ref,
              by = c("fipstate" , "fipscty")) |>
@@ -123,7 +123,7 @@ d_sector_totals_county_nc <- d_cbp_data |>
   inner_join(d_naics_abbr_ref,
              by = "naics_descr")
 
-d_total_est_emp_state_nc <- d_cbp_data_state |>
+d_total_est_tate_nc <- d_cbp_data_state |>
   filter(fipstate == "37") |>
   inner_join(d_fips_state_ref,
              by = c("fipstate")) |>
@@ -146,7 +146,7 @@ d_total_est_emp_state_nc <- d_cbp_data_state |>
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(est_emp_size_class_levels),
+  mutate(emp_size_class = as_factor(est_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
@@ -185,7 +185,7 @@ d_total_est_emp_usa <- d_cbp_data_state |>
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(est_emp_size_class_levels),
+  mutate(emp_size_class = as_factor(est_size_class_levels),
          emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
@@ -217,7 +217,7 @@ d_totals_usa <- d_cbp_data_state |>
                names_to = "emp_size_class",
                values_to = "value") |>
   #filter(emp_size_class != "n1000") |>
-  mutate(#emp_size_class = as_factor(est_emp_size_class_levels),
+  mutate(#emp_size_class = as_factor(est_size_class_levels),
          #emp_size_class = as.ordered(emp_size_class),
          pct = value / sum(value),
          .by = "year") |>
@@ -242,7 +242,7 @@ As one might expect, there are many more establishments with a small number of e
 #| fig-cap: "NC establishments 2021"
 #| column: page-inset-right
 
-p1 <- d_total_est_emp_state_nc |>
+p1 <- d_total_est_tate_nc |>
   filter(year == 2021) |>
   ggplot() +
   geom_col(aes(x = value, y = emp_size_class),
@@ -255,7 +255,7 @@ p1 <- d_total_est_emp_state_nc |>
     color = NULL,
   )
 
-p2 <- d_total_est_emp_state_nc |>
+p2 <- d_total_est_tate_nc |>
   filter(year == 2021) |>
   inner_join(n_employees_ref,
              by = "emp_size_class") |>
@@ -404,7 +404,7 @@ data_for_plot <-  d_cbp_data_state |>
                names_to = "est_size_class",
                values_to = "value") |>
   mutate(#naics_abbr = fct_lump(naics_abbr, 9, w = value),
-         est_size_class = factor(est_size_class, levels = est_emp_size_class_levels)) |>
+         est_size_class = factor(est_size_class, levels = est_size_class_levels)) |>
   mutate(pct_est = value / sum(value),
          .by = c("year"))
 
