@@ -7,13 +7,7 @@ book:
   date: today
   chapters:
     - index.qmd
-    #- prep-data.qmd
-    #- multi-decade-data-prep.qmd
-    #- intro.qmd
-    #- summary.qmd
-    #- references.qmd
     - cbd-employment-wages.qmd
-    - cbd-establishments-original.qmd
     - cbd-establishments.qmd
     - notes.qmd
 

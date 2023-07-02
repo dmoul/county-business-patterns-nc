@@ -411,12 +411,12 @@ d_est_sector_total_state_nc <- d_cbp_data_state |>
 d_emp_total_state_nc <- d_cbp_data_state |>
   filter(fipstate == "37",
          naics == "------") |>
-  select(year, fipstate, naics, emp, starts_with("e")) 
+  select(year, fipstate, naics, emp, starts_with("e"), avg_wage) 
 
 d_emp_sector_total_state_nc <- d_cbp_data_state |>
   filter(fipstate == "37",
          naics != "------") |>
-  select(year, fipstate, naics, emp, starts_with("e")) |>
+  select(year, fipstate, naics, emp, starts_with("e"), avg_wage) |>
   inner_join(d_fips_state_ref,
              by = c("fipstate")) |>
   inner_join(d_naics_ref_2021,
@@ -881,7 +881,7 @@ Noise added to some data before release may be the cause of the jumpiness in som
 #| fig-cap: "Percent of NC workers in each employee size class by sector"
 #| column: page-inset-right
 
-data_for_plot <- d_emp_state_nc_size_classes |> #d_sector_totals_state |>
+data_for_plot <- d_emp_state_nc_size_classes |> # d_emp_state_nc_size_classes |> #d_sector_totals_state |>
   inner_join(n_employees_ref |>
                select(-est_size_class),
              by = "emp_size_class") |>
@@ -911,15 +911,15 @@ data_for_plot |>
 
 There is variation across counties too.
 
-```{r fig.height=12, fig.width=10}
+```{r fig.height=6, fig.width=8}
 #| label: fig-county-naics-employees-sector-totals-time-series-pct
-#| fig-height: 12
-#| fig-width: 10
+#| fig-height: 6
+#| fig-width: 8
 #| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
 #| column: page-inset-right
   
-data_for_plot <- d_emp_sector_total_county |>
-  mutate(naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp),
+data_for_plot <- d_emp_total_county |> #state_nc |> #d_emp_state_nc_size_classes |>#d_emp_sector_total_county |>
+  mutate(#naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp))
          county_name = fct_lump(county_name, n = 10, w = emp)) 
 
 d_county_name_levels <- data_for_plot |> 
@@ -964,7 +964,8 @@ data_for_plot |>
   
 data_for_plot <- d_emp_county_nc_size_classes |>
   mutate(naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp),
-         county_name = fct_lump(county_name, n = 10, w = emp)) 
+         county_name = fct_lump(county_name, n = 10, w = emp),
+         county_name = fct_rev(county_name)) 
 
 data_for_plot |>
   filter(naics_abbr != "Other",
@@ -1087,10 +1088,13 @@ data_for_plot |>
 
 The year over year drop in manufacturing jobs through 2012 is striking. As is the consistent growth through the 21-year period in (1) Healthcare and social services and (2) Accommodation and food.
 
-```{r}
+```{r fig.height=5, fig.width=7}
+#| label: fig-rank-employment
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "Employment trend: top 5 sectors by number of employees"
 
-data_for_plot <- d_emp_sector_total_state_nc |> # d_sector_totals_state |>
-  #mutate(pct_emp = emp / sum(emp)) |>
+data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(top_naics,
              by = c("naics", "naics_abbr")) |>
   mutate(naics_abbr = fct_reorder(naics_abbr, emp))
@@ -1105,11 +1109,13 @@ data_for_plot |>
                    span = 0.95,
                    show.legend = FALSE
   ) +
-  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0, 0.02))) +
   scale_x_continuous(breaks = c(2001, 2011, 2021)) +
+  expand_limits(y = 0) +
   guides(color = guide_legend(reverse = TRUE)) +
   labs(
-    title = glue("NC employment trends: top {top_naics_cutoff} sectors"),
+    title = glue("Employment trend: NC top {top_naics_cutoff} sectors by employment"),
     x = "",
     y = "Number of employees",
     color = "",
@@ -1120,8 +1126,6 @@ data_for_plot |>
 
 <br>
 
-***TODO: switch df I use and make sure avg_wage is available***
-
 Average wage trends are not uniform across sectors. Wages in four of the five highest paying sectors grew faster than inflation while it dropped in "Management". I wonder if the drop in the average wage of the management sector is due to manufacturing and financial services disruptions set in motion by the 2008 financial crisis and the COVID-19 pandemic. 
 
 Utility workers' average wage declined in the years after the 2008 financial crisis and returned to growth in recent years. I wonder why the average wage of utility sector works nearly doubled in 2009 (and only then). That year no major hurricanes hit NC (which is the only likely "one year disruption" I can think of).
@@ -1130,16 +1134,15 @@ Utility workers' average wage declined in the years after the 2008 financial cri
 #| label: fig-rank-employee-wages-top-sectors-2021-dollars
 #| fig-height: 5
 #| fig-width: 7
-#| fig-cap: "Sector rank by number of employees TODO: Fixme"
-#| eval: false
+#| fig-cap: "Wage trend: top 5 sectors by average wage in 2021"
 
-top_wage <- d_sector_totals_state |>
+top_wage <- d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
   slice_max(order_by = avg_wage, n = top_naics_cutoff) |>
   mutate(wage_sort_order = row_number()) |>
   select(naics, wage_sort_order)
 
-data_for_plot <- d_sector_totals_state |>
+data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(top_wage,
              by = "naics") |>
   inner_join(d_infation_adj,
@@ -1157,11 +1160,13 @@ data_for_plot |>
                    show.legend = FALSE
   ) +
   scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
-                                           prefix = "$")) +
+                                           prefix = "$"),
+                     expand = expansion(mult = c(0, 0.02))) +
   scale_x_continuous(breaks = c(2001, 2011, 2021)) +
   guides(color = guide_legend(reverse = TRUE)) +
+  expand_limits(y = 0) +
   labs(
-    title = glue("NC average wages: top {top_naics_cutoff} sectors"),
+    title = glue("Wage trend: NC average wages: top {top_naics_cutoff} sectors"),
     subtitle = glue("In 2021 dollars"),
     x = "",
     y = "",
@@ -1173,29 +1178,53 @@ data_for_plot |>
 
 <br>
 
-## Other topics
+## Wage trend: in final year are wages higer or lower than starting year?
 
-There is no relationship between number of employees and average wage in a sector, 
-except in a few high-paying sectors where it seems over time employers hired more workers 
-and wages for the sector rose.
+```{r fig.height=8, fig.width=10}
+#| label: fig-wage-trend-top-sectors
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "NC average wage trend by sector 2001 - 2021"
 
-```{r}
-#| eval: false
+data_for_plot <- d_emp_sector_total_state_nc |>
+  inner_join(d_infation_adj,
+             by = "year") |>
+  mutate(avg_wage_adjusted = avg_wage * adj) |>
+  mutate(min_wage = min(avg_wage_adjusted),
+         max_wage = min(avg_wage_adjusted),
+         wage_fist_year = avg_wage_adjusted[year == min(year)],
+         wage_last_year = avg_wage_adjusted[year == max(year)],
+         .by = c("naics")) |>
+  mutate(wage_diff = wage_last_year - wage_fist_year,
+         wage_direction = if_else(wage_diff > 0, "wage up", "wage down"))
 
-d_sector_totals_county |>
-  #filter(year == 2021) |>
+labels_for_plot <- data_for_plot |>
+  filter(year == max(year))
+  
+data_for_plot |>
   filter(emp != 0) |>
-  ggplot(aes(emp, avg_wage, color = naics_abbr)) +
-  geom_point(size = 0.2, alpha = 0.2, na.rm = TRUE,
+  ggplot(aes(year, avg_wage_adjusted, color = naics_abbr)) +
+  geom_point(size = 0.5, alpha = 0.2, na.rm = TRUE,
              show.legend = FALSE) +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale(),
-                                           prefix = "$")) +
-  scale_y_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  geom_smooth(method = 'loess', formula = 'y ~ x',
+              #span = 3,
+              se = FALSE, show.legend = FALSE) +
+  geom_text_repel(data = labels_for_plot,
+                  aes(x = year + 0.5, y = avg_wage_adjusted, label = naics_abbr),
+                  direction = "y", hjust = 0, vjust = 0.5, size = 3,
+                  min.segment.length = unit(1, "cm"), force_pull = 100,
+                  seed = 123,
+                  show.legend = FALSE) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
+                                           prefix = "$"),
+                     expand = expansion(mult = c(0, 0.02))) +
+  expand_limits(x = 2026,
+                y = 0) +
+  facet_wrap(~ wage_direction) +
   labs(
-    title = "Number of employees by average wage",
-    subtitle = glue("NC counties - CBP sectors 2001-2021; nominal dollars (not adjusted for inflation)",
-    "\nColor is associated with sector"),
-    x = "Average sector wage (log10 scale)",
+    title = "NC average wage trend by sector 2001-2021",
+    subtitle = glue("Is sector average wage in final year up or down compared to starting year in 2021 dollars?"),
+    x = NULL,
     y = "Employees in county (log10 scale)",
     caption = my_caption
   )
@@ -1226,30 +1255,21 @@ d_naics_abbr_ref |>
 Sectors sorted by number of employees:
 
 ```{r}
-#d_sector_totals_state |>
 d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
-  select(naics, naics_abbr, naics_descr, emp, pct_emp) |>
-  arrange(-emp) |>
+  select(naics, naics_abbr, naics_descr, avg_wage, emp, pct_emp) |>
+  arrange(-avg_wage) |>
   mutate(rowid = row_number()) |>
   relocate(naics_descr, .after = naics) |>
-  #relocate(avg_wage, .after = emp_pct) |>
   gt() |>
   tab_header(md(glue("**NC sector employment 2021**",
-                     "<br>*Sorted by sector totals*"))) |>
+                     "<br>*Sorted by sector average wage*"))) |>
   tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
   tab_options(table.font.size = 10) |>
-  fmt_number(columns = c(emp),
+  fmt_number(columns = c(emp, avg_wage),
              decimals = 0) |>
   fmt_percent(columns = pct_emp, 
              decimals = 0)
-
-```
-
-<br>
-
-```{r}
-knitr::knit_exit()
 
 ```
 
@@ -1277,6 +1297,13 @@ d_sector_totals_state |>
              decimals = 0)
 
 ```
+
+```{r}
+knitr::knit_exit()
+
+```
+
+<br>
 
 
 
