@@ -738,3 +738,37 @@ data_for_plot |>
 ```
 
 <br>
+
+## Table
+
+Sorted by percent difference from 2001 to 2021
+
+```{r}
+#| label: tbl-state-nc-eest
+#| tbl-cap: "NC state establishments by sector 2021"
+#| tbl-cap-location: bottom
+
+d_est_sector_total_state_nc |>
+  filter(naics_abbr != "OtherInd") |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, -est)
+         ) |>
+  mutate(est_fist_year = est[year == min(year)],
+         est_last_year = est[year == max(year)],
+         .by = c("naics")) |>
+  mutate(pct_est_diff = est_last_year / est_fist_year - 1) |>
+  filter(year == 2021) |>
+  select(naics, naics_abbr, est_2021 = est, pct_est_2021 = pct_est, pct_est_diff_since_2001 = pct_est_diff) |>
+  arrange(-pct_est_diff_since_2001) |>
+  mutate(rowid = row_number()) |>
+  gt() |>
+  tab_header(md(glue("**NC sector establishments in 2021 and growth since 2001**",
+                     "<br>*Sorted by growth since 2001*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10) |>
+  fmt_number(columns = c(est_2021),
+             decimals = 0) |>
+  fmt_percent(columns = c(pct_est_2021, pct_est_diff_since_2001),
+             decimals = 0)
+```
+
+<br>

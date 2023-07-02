@@ -1044,8 +1044,8 @@ data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(d_infation_adj,
              by = "year") |>
   mutate(avg_wage_adjusted = avg_wage * adj) |>
-  mutate(min_wage = min(avg_wage_adjusted),
-         max_wage = min(avg_wage_adjusted),
+  mutate(#min_wage = min(avg_wage_adjusted),
+         #max_wage = min(avg_wage_adjusted),
          wage_fist_year = avg_wage_adjusted[year == min(year)],
          wage_last_year = avg_wage_adjusted[year == max(year)],
          .by = c("naics")) |>
@@ -1198,6 +1198,9 @@ data_for_plot |>
 Below are the sector summary categories used in the CBP. To simplify plotting, I created some abbreviations:
 
 ```{r}
+#| label: tbl-sector-abbreviations
+#| tbd-cap: "NAICS sector descriptions and abbreviations"
+
 d_naics_abbr_ref |>
   arrange(naics_abbr_num) |>
   select(naics_abbr, naics_descr) |>
@@ -1215,10 +1218,15 @@ d_naics_abbr_ref |>
 Sectors sorted by number of employees:
 
 ```{r}
+#| label: tbl-state-nc-emp
+#| tbl-cap: "NC state employment by sector 2021"
+#| tbl-cap-location: bottom
+
 d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
-  select(naics, naics_abbr, naics_descr, emp, pct_emp) |> #avg_wage, 
-  arrange(-emp) |>
+  filter(naics_abbr != "OtherInd") |>
+  select(naics, naics_abbr, naics_descr, emp_2021 = emp, pct_emp_2021 = pct_emp) |>
+  arrange(-emp_2021) |>
   mutate(rowid = row_number()) |>
   relocate(naics_descr, .after = naics) |>
   gt() |>
@@ -1226,22 +1234,57 @@ d_emp_sector_total_state_nc |>
                      "<br>*Sorted by sector employment*"))) |>
   tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
   tab_options(table.font.size = 10) |>
-  fmt_number(columns = c(emp), #, avg_wage
+  fmt_number(columns = c(emp_2021), #, avg_wage
              decimals = 0) |>
-  fmt_percent(columns = pct_emp, 
+  fmt_percent(columns = pct_emp_2021, 
              decimals = 0)
 
 ```
 
 <br>
 
+Sorted by percent difference from 2001 to 2021
+
+```{r}
+#| label: tbl-state-nc-emp-growth
+#| tbl-cap: "NC state employment growth by sector 2001-2021"
+#| tbl-cap-location: bottom
+
+d_emp_sector_total_state_nc |>
+  filter(naics_abbr != "OtherInd") |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, -emp)
+         ) |>
+  mutate(emp_fist_year = emp[year == min(year)],
+         emp_last_year = emp[year == max(year)],
+         .by = c("naics")) |>
+  mutate(pct_emp_diff = emp_last_year / emp_fist_year - 1) |>
+  filter(year == 2021) |>
+  select(naics, naics_abbr, emp_2021 = emp, pct_emp_2021 = pct_emp, pct_emp_diff_since_2001 = pct_emp_diff) |>
+  arrange(-pct_emp_diff_since_2001) |>
+  mutate(rowid = row_number()) |>
+  gt() |>
+  tab_header(md(glue("**NC sector employment in 2021 and growth since 2001**",
+                     "<br>*Sorted by growth since 2001*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10) |>
+  fmt_number(columns = c(emp_2021),
+             decimals = 0) |>
+  fmt_percent(columns = c(pct_emp_2021, pct_emp_diff_since_2001),
+             decimals = 0)
+
+```
+
 Sorted by average wage:
 
 ```{r}
+#| label: tbl-state-nc-emp-wage
+#| tbl-cap: "NC state average wage by sector 2021"
+#| tbl-cap-location: bottom
+
 d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
-  select(naics, naics_abbr, naics_descr, avg_wage, emp, pct_emp) |>
-  arrange(-avg_wage) |>
+  select(naics, naics_abbr, naics_descr, avg_wage_2021 = avg_wage, emp_2021 = emp, pct_emp_2021 = pct_emp) |>
+  arrange(-avg_wage_2021) |>
   mutate(rowid = row_number()) |>
   relocate(naics_descr, .after = naics) |>
   gt() |>
@@ -1249,14 +1292,44 @@ d_emp_sector_total_state_nc |>
                      "<br>*Sorted by sector average wage*"))) |>
   tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
   tab_options(table.font.size = 10) |>
-  fmt_number(columns = c(emp, avg_wage),
+  fmt_number(columns = c(emp_2021, avg_wage_2021),
              decimals = 0) |>
-  fmt_percent(columns = pct_emp, 
+  fmt_percent(columns = pct_emp_2021, 
              decimals = 0)
 
 ```
 
 <br>
 
+```{r}
+#| label: tbl-state-nc-emp-wage-growth
+#| tbl-cap: "NC state average wage growth by sector 2001-2021"
+#| tbl-cap-location: bottom
 
+d_emp_sector_total_state_nc |>
+  inner_join(d_infation_adj,
+             by = "year") |>
+  mutate(avg_wage_adjusted = avg_wage * adj) |>
+  mutate(wage_fist_year = avg_wage_adjusted[year == min(year)],
+         wage_last_year = avg_wage_adjusted[year == max(year)],
+         .by = c("naics")) |>
+  mutate(wage_diff = wage_last_year - wage_fist_year,
+         pct_wage_diff = wage_last_year / wage_fist_year - 1) |>
+  filter(year == 2021) |>
+  select(naics, naics_abbr, avg_wage_2021 = wage_last_year, pct_avg_wage_diff_since_2001 = pct_wage_diff, 
+         emp_2021 = emp, pct_emp_2021 = pct_emp) |>
+  arrange(-pct_avg_wage_diff_since_2001) |>
+  mutate(rowid = row_number()) |>
+  gt() |>
+  tab_header(md(glue("**NC sector average wage 2021 and difference since 2001**",
+                     "<br>*Sorted by average wage difference*"))) |>
+  tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
+  tab_options(table.font.size = 10) |>
+  fmt_number(columns = c(avg_wage_2021, emp_2021),
+             decimals = 0) |>
+  fmt_percent(columns = c(pct_avg_wage_diff_since_2001, pct_emp_2021), 
+             decimals = 0)
 
+```
+
+<br>
