@@ -945,7 +945,7 @@ data_for_plot |>
 
 <br>
 
-## Trends
+## Trends in employment and average wages
 
 The year over year drop in manufacturing jobs through 2012 is striking. As is the consistent growth through the 21-year period in (1) Healthcare and social services and (2) Accommodation and food.
 
@@ -1039,13 +1039,12 @@ data_for_plot |>
 
 <br>
 
-## Wage trend: in final year are wages higer or lower than starting year?
-
 ```{r fig.height=8, fig.width=10}
 #| label: fig-wage-trend-top-sectors
-#| fig-height: 8
-#| fig-width: 10
+#| fig-height: 10
+#| fig-width: 8
 #| fig-cap: "NC average wage trend by sector 2001 - 2021"
+#| warning: false
 
 data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(d_infation_adj,
@@ -1057,15 +1056,16 @@ data_for_plot <- d_emp_sector_total_state_nc |>
          wage_last_year = avg_wage_adjusted[year == max(year)],
          .by = c("naics")) |>
   mutate(wage_diff = wage_last_year - wage_fist_year,
-         wage_direction = if_else(wage_diff > 0, "wage up", "wage down"))
+         wage_direction = if_else(wage_diff > 0, "wage up", "wage down"),
+         pct_wage_diff = wage_last_year / wage_fist_year - 1)
 
 labels_for_plot <- data_for_plot |>
   filter(year == max(year))
   
-data_for_plot |>
+p1 <- data_for_plot |>
   filter(emp != 0) |>
   ggplot(aes(year, avg_wage_adjusted, color = naics_abbr)) +
-  geom_point(size = 0.5, alpha = 0.2, na.rm = TRUE,
+  geom_point(size = 1, alpha = 0.2, na.rm = TRUE,
              show.legend = FALSE) +
   geom_smooth(method = 'loess', formula = 'y ~ x',
               #span = 3,
@@ -1083,10 +1083,31 @@ data_for_plot |>
                 y = 0) +
   facet_wrap(~ wage_direction) +
   labs(
-    title = "NC average wage trend by sector 2001-2021",
-    subtitle = glue("Is sector average wage in final year up or down compared to starting year in 2021 dollars?"),
+    subtitle = glue("What is the NC average wage trend,",
+                    " and is sector average wage in 2021 up or down compared to 2001?"),
     x = NULL,
-    y = "Employees in county (log10 scale)",
+    y = "Average wages"
+  )
+
+p2 <- data_for_plot |>
+  filter(year == 2021,
+         emp != 0) |>
+  ggplot(aes(emp, pct_wage_diff, color = naics_abbr)) +
+  geom_hline(yintercept = 0, lty = 2, size = 0.2, alpha = 0.2) +
+  geom_label(aes(label = naics_abbr),
+             show.legend = FALSE, hjust = 0.5, vjust = 0.5) +
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    subtitle = glue("What is the percentage change in average wages since 2001?"),
+    x = "Employees in NC in 2021",
+    y = "Percent change in average wage since 2001"
+    )
+
+p1 / p2 +
+  plot_annotation(
+    title = "Percent of NC workers in each employee size class by sector",
+    subtitle = "2021 dollars; includes all sectors reported in CBP",
     caption = my_caption
   )
 
