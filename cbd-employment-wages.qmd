@@ -616,7 +616,7 @@ p1 <- data_for_plot |>
   scale_y_discrete(limits=rev) +
   labs(
     x = "Percent of employees",
-    y = "Employmee size class",
+    y = "Employee size class",
     color = NULL,
   )
 
@@ -632,7 +632,7 @@ p2 <- data_for_plot |>
   scale_x_discrete(limits=rev) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
-    x = "Employmee size class",
+    x = "Employee size class",
     y = "Percent of employees",
     color = NULL,
   )
@@ -649,9 +649,9 @@ p1 + p2 +
 
 <br>
 
-```{r fig.height=6, fig.width=12}
+```{r fig.height=8, fig.width=12}
 #| label: fig-state-establishments-employees-naics-pct-two-plot
-#| fig-height: 6
+#| fig-height: 8
 #| fig-width: 12
 #| fig-cap: "Percent of NC workers in each employee size class by sector 2021"
 #| column: page-inset-right
@@ -677,6 +677,18 @@ p1 <- data_for_plot |>
   )
 
 p2 <- data_for_plot |>
+  ggplot() +
+  geom_col(aes(x = pct_emp, y = emp_size_class, fill = naics_abbr),
+           alpha = 0.6, position = position_fill()) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_y_discrete(limits=rev) +
+  labs(
+    x = "Distibution of size classes",
+    y = "Employee size class",
+    color = NULL
+  )
+
+p3 <- data_for_plot |>
   mutate(naics_abbr = fct_reorder(naics_abbr, emp, sum)) |> #-pct_emp, sum)) |>
   ggplot() +
   geom_col(aes(x = pct_emp, y = naics_abbr, fill = emp_size_class),
@@ -689,7 +701,20 @@ p2 <- data_for_plot |>
     color = NULL
   )
 
-p1 + p2 +
+p4 <- data_for_plot |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp, sum)) |> #-pct_emp, sum)) |>
+  ggplot() +
+  geom_col(aes(x = pct_emp, y = naics_abbr, fill = emp_size_class),
+           alpha = 0.6, position = position_fill()) +
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_viridis_d(end = 0.85) +
+  labs(
+    x = "Distribution of NAICS categories",
+    y = NULL,
+    color = NULL
+  )
+
+(p1 + p2) / (p3 + p4) +
   plot_annotation(
     title = "Percent of NC workers in each employee size class by sector",
     subtitle = "2021; includes all sectors reported in CBP",
