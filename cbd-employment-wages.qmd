@@ -190,8 +190,6 @@ if(!file.exists(data_fname)) {
     relocate(year, .before = path) |>
     select(-censtate)
 
-# x_test_count <- count(dta, year, fipstate)
-    
   write_rds(dta, data_fname,
             compress = "bz2")
 } else {
@@ -200,8 +198,7 @@ if(!file.exists(data_fname)) {
 
 d_cbp_data_state <- dta |>
   mutate(avg_wage = (ap * 1000) / emp) |> # nominal avg wage for sector one year
-  select(#-c(n1_4:n1000),
-         -c(lfo)) #e1_4, a1_4, 
+  select(-c(lfo))
 
 ```
 
@@ -228,115 +225,13 @@ est_size_class_levels = c("n1_4", "n5_9", "n10_19", "n20_49", "n50_99", "n100_24
 emp_size_class_levels = c("e1_4", "e5_9", "e10_19", "e20_49", "e50_99", "e100_249", "e250_499", "e500_999", 
                      "e1000")
 
-n_employees_ref <- tibble( # note: excluding n1000
+n_employees_ref <- tibble(
   est_size_class = est_size_class_levels,
   emp_size_class = emp_size_class_levels,
   emp_class_count = c(2, 7, 15, 35, 75, 175, 375, 750, 2000),
   factor_order = 1:9
 )
 
-```
-
-```{r, eval=FALSE}
-#| eval: false
-
-# TODO: do I need these?
-
-d_total_est_county <- d_cbp_data_county |>
-  inner_join(d_fips_county_ref,
-             by = c("fipstate" , "fipscty")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr") |>
-  summarize(est = sum(est, na.rm = TRUE),
-            n1_4 = sum(n1_4, na.rm = TRUE),
-            n5_9 = sum(n5_9, na.rm = TRUE),
-            n10_19 = sum(n10_19, na.rm = TRUE),
-            n20_49 = sum(n20_49, na.rm = TRUE),
-            n50_99 = sum(n50_99, na.rm = TRUE),
-            n100_249 = sum(n100_249, na.rm = TRUE),
-            n250_499 = sum(n250_499, na.rm = TRUE),
-            n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE),
-            .by = c(year, fipscty))
-
-d_sector_totals_county_nc <- d_cbp_data_country |>
-  mutate(avg_wage = (ap * 1000) / emp) |>
-  inner_join(d_fips_county_ref,
-             by = c("fipstate" , "fipscty")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr")
-
-d_total_est_state_nc <- d_cbp_data_state |>
-  filter(fipstate == "37") |>
-  inner_join(d_fips_state_ref,
-             by = c("fipstate")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr") |>
-  summarize(est = sum(est, na.rm = TRUE),
-            n1_4 = sum(n1_4, na.rm = TRUE),
-            n5_9 = sum(n5_9, na.rm = TRUE),
-            n10_19 = sum(n10_19, na.rm = TRUE),
-            n20_49 = sum(n20_49, na.rm = TRUE),
-            n50_99 = sum(n50_99, na.rm = TRUE),
-            n100_249 = sum(n100_249, na.rm = TRUE),
-            n250_499 = sum(n250_499, na.rm = TRUE),
-            n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE),
-            .by = c("year")) |>
-  pivot_longer(n1_4:n1000,
-               names_to = "emp_size_class",
-               values_to = "value") |>
-  #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(est_size_class_levels),
-         emp_size_class = as.ordered(emp_size_class),
-         pct_est = value / sum(value),
-         .by = "year") |>
-  filter(value > 0)
-
-d_total_est_usa <- d_cbp_data_state |>
-  #filter(fipstate == "37") |>
-  inner_join(d_fips_state_ref,
-             by = c("fipstate")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr") |>
-  summarize(est = sum(est, na.rm = TRUE),
-            n1_4 = sum(n1_4, na.rm = TRUE),
-            n5_9 = sum(n5_9, na.rm = TRUE),
-            n10_19 = sum(n10_19, na.rm = TRUE),
-            n20_49 = sum(n20_49, na.rm = TRUE),
-            n50_99 = sum(n50_99, na.rm = TRUE),
-            n100_249 = sum(n100_249, na.rm = TRUE),
-            n250_499 = sum(n250_499, na.rm = TRUE),
-            n500_999 = sum(n500_999, na.rm = TRUE),
-            n1000 = sum(n1000, na.rm = TRUE),
-            .by = c("year")) |>
-  pivot_longer(n1_4:n1000,
-               names_to = "emp_size_class",
-               values_to = "value") |>
-  #filter(emp_size_class != "n1000") |>
-  mutate(emp_size_class = as_factor(est_size_class_levels),
-         emp_size_class = as.ordered(emp_size_class),
-         pct_est = value / sum(value),
-         .by = "year") |>
-  filter(value > 0)
-
-d_sector_totals_state_nc <- d_cbp_data_state |>
-  filter(fipstate == "37") |>
-  mutate(avg_wage = (ap * 1000) / emp) |>
-  inner_join(d_fips_state_ref,
-             by = c("fipstate")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr")
 ```
 
 ```{r}
@@ -447,34 +342,28 @@ d_emp_state_nc_size_classes <- d_cbp_data_state |>
 d_emp_total_county <- d_cbp_data_county |>
   filter(fipstate == "37",
          naics == "------") |>
-  select(year, fipscty, naics, emp) |> #, starts_with("n")) |>
+  select(year, fipscty, naics, emp) |>
   inner_join(d_fips_county_ref,
              by = c("fipscty")) |>
   inner_join(d_naics_ref_2021,
              by = "naics") |>
   inner_join(d_naics_abbr_ref,
              by = "naics_descr") |>
-  # TODO: do I need to set emp_size_class factors?
-  mutate(#emp_size_class = as_factor(emp_size_class), # keep existing order
-         #emp_size_class = as.ordered(emp_size_class),
-         pct_emp = emp / sum(emp),
+  mutate(pct_emp = emp / sum(emp),
          .by = c("year")) |>
   filter(emp > 0)
 
 d_emp_sector_total_county <- d_cbp_data_county |>
   filter(fipstate == "37",
          naics != "------") |>
-  select(year, fipscty, naics, emp) |> #, starts_with("n")) |>
+  select(year, fipscty, naics, emp) |>
   inner_join(d_fips_county_ref,
              by = c("fipscty")) |>
   inner_join(d_naics_ref_2021,
              by = "naics") |>
   inner_join(d_naics_abbr_ref,
              by = "naics_descr") |>
-  # TODO: do I need to set emp_size_class factors?
-  mutate(#emp_size_class = as_factor(emp_size_class), # keep existing order
-         #emp_size_class = as.ordered(emp_size_class),
-         pct_emp = emp / sum(emp),
+  mutate(pct_emp = emp / sum(emp),
          .by = c("year")) |>
   filter(emp > 0)
 
@@ -498,11 +387,7 @@ d_emp_county_nc_size_classes <- d_cbp_data_county |>
   mutate(value = est_value * emp_class_count) |>
   mutate(emp = if_else(sum(emp) == 0, sum(value), mean(emp)),
          .by = c("year", "fipscty", "naics")) |>
-  #select(-est_class_size)
-  # TODO: do I need to set emp_size_class factors?
-  mutate(#emp_size_class = as_factor(emp_size_class), # keep existing order
-         #emp_size_class = as.ordered(emp_size_class),
-         pct_emp = value / sum(value),
+  mutate(pct_emp = value / sum(value),
          .by = c("year", "fipscty")) |>
   filter(value > 0)
 
@@ -510,8 +395,6 @@ d_emp_county_nc_size_classes <- d_cbp_data_county |>
 ###### USA ######
 
 d_est_emp_total_usa <- d_cbp_data_state |>
-  #filter(fipstate == "37") |>
-  #mutate(avg_wage = (ap * 1000) / emp) |>
   inner_join(d_fips_state_ref,
              by = c("fipstate")) |>
   inner_join(d_naics_ref_2021,
@@ -586,53 +469,6 @@ d_emp_usa_total_size_classes <- d_est_emp_total_usa |>
          .by = "year") |>
   filter(value > 0)
 
-```
-
-```{r eval=FALSE}
-#| label: define-sector-totals
-#| eval: false
-
-# TODO: which of these are still needed / need to be changed?
-d_sector_totals_usa <- d_cbp_data_state |>
-  reframe(est = sum(est),
-         emp = sum(emp),
-         .by = c("year", "naics")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr") |>
-  mutate(emp_pct = emp / sum(emp),
-         .by = year)
-
-d_sector_totals_county <- d_cbp_data_country |>
-  filter(fipstate == "37") |> # NC only
-  mutate(avg_wage = (ap * 1000) / emp) |>
-  inner_join(d_fips_county_ref,
-             by = c("fipstate" , "fipscty")) |>
-  inner_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr")
-
-# todo: use d_cbp_data_state?
-d_sector_totals_state <- d_cbp_data_state |>
-  filter(fipstate == "37") |> # NC only
-  left_join(d_naics_ref_2021,
-             by = "naics") |>
-  inner_join(d_naics_abbr_ref,
-             by = "naics_descr") |>
-  summarize(emp = sum(emp, na.rm = TRUE),
-            avg_wage = sum(ap) * 1000 / emp,
-            .by = c(year, naics, naics_abbr, naics_descr)) |>
-  mutate(emp_pct = emp / sum(emp),
-         .by = year)
-
-d_sector_totals_state_from_county <- d_sector_totals_county |>
-  summarize(emp = sum(emp, na.rm = TRUE),
-            avg_wage = sum(ap) * 1000 / emp,
-            .by = c(year, naics, naics_abbr, naics_descr)) |>
-  mutate(emp_pct = emp / sum(emp),
-         .by = year)
 ```
 
 ```{r}
