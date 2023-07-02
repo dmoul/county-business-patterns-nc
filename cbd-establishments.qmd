@@ -738,11 +738,3 @@ data_for_plot |>
 ```
 
 <br>
-
-```{r}
-knitr::knit_exit()
-
-```
-
-<br>
-

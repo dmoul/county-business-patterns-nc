@@ -1256,11 +1256,6 @@ d_emp_sector_total_state_nc |>
 
 ```
 
-```{r}
-knitr::knit_exit()
-
-```
-
 <br>
 
 
