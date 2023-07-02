@@ -1,4 +1,4 @@
-# NC employment and sector average wages 2001-2021
+# Employment and average wages
 
 ```{r}
 #| label: setup
@@ -69,7 +69,7 @@ d_naics_abbr_ref <- tribble(
    "Management of Companies and Enterprises",                                     12,              "Mgmt",
    "Administrative and Support and Waste Management and Remediation Services",    2,               "AdminWaste",
    "Educational Services",                                                        6,               "Educ",
-   "Health Care and Social Assistance",                                           8,               "HeathSoc",
+   "Health Care and Social Assistance",                                           8,               "HealthSoc",
    "Arts, Entertainment, and Recreation",                                         4,               "ArtEntRec",
    "Accommodation and Food Services",                                             1,               "AccFood",
    "Other Services (except Public Administration)",                               19,              "OtherServ",
@@ -584,7 +584,7 @@ data_for_plot |>
 
 <br>
 
-Let's assume that the average number of workers in each employment size class is about the midpoint of the class. From the perspective of workers, what are the most common employer size classes?
+The CBP includes employees categorized by employee size class. The range is embedded in the name. For example, `e1_4` includes a count of employees working in establishments with 1-4 employees. Let's assume that the average number of workers in each employment size class is about the midpoint of the class. I have assumed that `e1000` ("1000 or more employees) that the midpoint is 2000. From the perspective of workers, what are the most common employer size classes?
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-workers
@@ -814,7 +814,7 @@ data_for_plot |>
 ## Trends in employment and average wages statewide
 
 ```{r fig.height=10, fig.width=12}
-#| label: fig-state-employemnet-naics-timeseries
+#| label: fig-state-employment-naics-timeseries
 #| fig-height: 10
 #| fig-width: 12
 #| fig-cap: "NC workers in each sector 2001-2021"
@@ -898,7 +898,6 @@ p3 <- data_for_plot |>
 
 ```
 
-
 <br>
 
 The portion of employees in each employee class size varies over time and across sectors. Decade-long trends are visible: 
@@ -912,7 +911,7 @@ In the HealthSoc, Retail, and ProfSciTec sectors there are cases of big changes 
 Noise added to some data before release may be the cause of the jumpiness in some of the least common employee size classes.
 
 ```{r fig.height=8, fig.width=10}
-#| label: fig-state-establishments-employees-naics-pct-timeseries
+#| label: fig-state-employees-naics-pct-timeseries-top-9-sectors
 #| fig-height: 8
 #| fig-width: 10
 #| fig-cap: "Percent of NC workers in each employee size class by sector"

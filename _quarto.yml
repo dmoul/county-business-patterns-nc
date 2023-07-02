@@ -2,13 +2,14 @@ project:
   type: book
 
 book:
-  title: "County Business Patterns in North Carolina"
+  title: "County Business Patterns in North Carolina 2001-2021"
   author: "Daniel Moul"
   date: today
   chapters:
     - index.qmd
     - cbd-employment-wages.qmd
     - cbd-establishments.qmd
+    - observations-sectors.qmd
     - notes.qmd
 
 execute:

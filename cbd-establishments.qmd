@@ -1,4 +1,4 @@
-# NC establishments 2001-2021
+# Establishments
 
 ```{r}
 #| label: setup
@@ -64,7 +64,7 @@ d_naics_abbr_ref <- tribble(
    "Management of Companies and Enterprises",                                     12,              "Mgmt",
    "Administrative and Support and Waste Management and Remediation Services",    2,               "AdminWaste",
    "Educational Services",                                                        6,               "Educ",
-   "Health Care and Social Assistance",                                           8,               "HeathSoc",
+   "Health Care and Social Assistance",                                           8,               "HealthSoc",
    "Arts, Entertainment, and Recreation",                                         4,               "ArtEntRec",
    "Accommodation and Food Services",                                             1,               "AccFood",
    "Other Services (except Public Administration)",                               19,              "OtherServ",
@@ -409,13 +409,15 @@ top_counties_emp <- d_emp_sector_total_county |>
 
 ```
 
-The County Business Patterns data includes counts of establishments by number of workers. The category names embed the range. For example, `n1_4` includes establishments reporting 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
+## Number of establishments in NC
+
+The County Business Patterns data includes counts of establishments, which is  an umbrella term referring to corporations, partnerships, non-profit organizations, etc.
+
+The CBP includes establishments categorized by employee size class. The range is embedded in the name. For example, `n1_4` includes a count of establishments with 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
 
 For simplicity's sake, the plots below that reference sectors use the sector abbreviations listed in @sec-tables.
 
 <br>
-
-## Number of establishments in NC
 
 As one might expect, there are many more establishments with a small number of employees. Each subsequent employee size class includes fewer establishments.
 
@@ -609,6 +611,96 @@ p4 <- data_for_plot |>
   )
   
 ```
+
+<br>
+
+## Trends in the number of establishements
+
+```{r fig.height=10, fig.width=12}
+#| label: fig-state-establishments-naics-timeseries
+#| fig-height: 10
+#| fig-width: 12
+#| fig-cap: "NC establishments in each sector 2001-2021"
+#| column: page-inset-right
+#| warning: false
+
+data_for_plot <- d_est_sector_total_state_nc |>
+  filter(naics_abbr != "OtherInd") |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, -est)
+         ) |>
+  mutate(est_fist_year = est[year == min(year)],
+         est_last_year = est[year == max(year)],
+         .by = c("naics")) |>
+  mutate(pct_est_diff = est_last_year / est_fist_year - 1)
+
+labels_for_plot <- data_for_plot |>
+  filter(year == max(year))
+
+p1 <- data_for_plot |>
+  filter(naics_abbr != "Other") |>
+  ggplot() +
+  geom_line(aes(x = year, y = est, color = naics_abbr, group = naics_abbr),
+           linewidth = 0.4, alpha = 0.6, show.legend = FALSE) +
+  geom_text_repel(data = labels_for_plot,
+                  aes(x = year + 0.5, y = est, label = naics_abbr, color = naics_abbr),
+                  direction = "y", hjust = 0, vjust = 0.5, size = 3,
+                  min.segment.length = unit(1, "cm"), force_pull = 100,
+                  seed = 123,
+                  show.legend = FALSE) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  expand_limits(x = 2026,
+                y = 0) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    subtitle = "NC establishments in each sector",
+    x = "",
+    y = "Number of establishments",
+    color = NULL,
+    caption = my_caption
+  )
+
+p2 <- data_for_plot |>
+  filter(naics_abbr != "Other") |>
+  ggplot() +
+  geom_area(aes(x = year, y = est, color = naics_abbr, fill = naics_abbr, group = naics_abbr),
+           linewidth = 0.4, alpha = 0.6, show.legend = FALSE) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0, 0.02))) +
+  expand_limits(#x = 2026,
+                y = 0) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    subtitle = "NC establishments combined trend",
+    x = "",
+    y = "Number of establishments",
+    color = NULL,
+    caption = my_caption
+  )
+
+p3 <- data_for_plot |>
+  filter(year == 2021,
+         est != 0) |>
+  ggplot(aes(est, pct_est_diff, color = naics_abbr)) +
+  geom_hline(yintercept = 0, lty = 2, size = 0.2, alpha = 0.2) +
+  geom_label(aes(label = naics_abbr),
+             show.legend = FALSE, hjust = 0.5, vjust = 0.5) +
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    subtitle = glue("What is the percent change in establishments since 2001?"),
+    x = "Establishments in NC in 2021",
+    y = "Pct change since 2001"
+    )
+
+(p1 + p2) / p3 +
+  plot_annotation(
+    title = "NC establishments in each sector 2001-2021",
+    subtitle = "Includes all sectors reported in CBP",
+    caption = my_caption
+  )
+
+```
+
 
 <br>
 
