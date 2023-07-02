@@ -8,10 +8,14 @@ source("./scripts/setup.R")
 
 data_label_size <- 3.5 # for plots using labels as data points
 
+# for helpful sub-setting
+top_naics_cutoff <- 5
+top_county_cutoff <- 10
+
 ```
 
 ```{r}
-#| label: define-fips-and-naics-references
+#| label: define-reference-data
 
 # since no change in NC county FIPS codes over this time period, I can use the latest
 # includes fipscty 999 "Statewide" that corresponds to employment not associated with a county
@@ -80,20 +84,6 @@ d_naics_ref_2021 <- read_csv("./data/ref/naics2017.txt",
          naics_descr = str_replace_all(naics_descr, "&", "and"))
 
 
-# assume processed data files exist (that cbd-employment-wages.qmd has been run at least once)
-d_cbp_data_county <- read_rds("./data/processed/cbp_nc_sector_totals_2001_2021.rds") |>
-  mutate(avg_wage = if_else(emp > 0, (ap * 1000) / emp, NA_real_)) |> # nominal avg wage for sector one year
-  select(-c(n1000_1:n1000_4))
-
-d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021.rds") |>
-  mutate(avg_wage = (ap * 1000) / emp) |> # nominal avg wage for sector one year
-  select(-c(lfo)) 
-
-```
-
-```{r}
-#| label: define-inflation-employee-references
-
 ###### inflation adjustment ######
 
 d_infation_ref <- read_xlsx("./data/ref/us-inflation.xlsx",
@@ -120,6 +110,20 @@ n_employees_ref <- tibble(
   emp_class_count = c(2, 7, 15, 35, 75, 175, 375, 750, 2000),
   factor_order = 1:9
 )
+
+```
+
+```{r}
+#| label: define-state-and-county-data
+
+# assume processed data files exist (that cbd-employment-wages.qmd has been run at least once)
+d_cbp_data_county <- read_rds("./data/processed/cbp_nc_sector_totals_2001_2021.rds") |>
+  mutate(avg_wage = if_else(emp > 0, (ap * 1000) / emp, NA_real_)) |> # nominal avg wage for sector one year
+  select(-c(n1000_1:n1000_4))
+
+d_cbp_data_state <- read_rds("./data/processed/cbp_state_sector_totals_2001_2021.rds") |>
+  mutate(avg_wage = (ap * 1000) / emp) |> # nominal avg wage for sector one year
+  select(-c(lfo)) 
 
 ```
 
@@ -387,6 +391,22 @@ d_est_usa_size_classes <- d_est_emp_total_usa |>
          .by = "year") |>
   filter(value > 0)
 
+
+###### for helpful sub-setting ######
+
+top_naics <- d_emp_sector_total_state_nc |>
+  filter(year == 2021) |>
+  slice_max(order_by = emp, n = top_naics_cutoff) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp),
+         naics_sort_order = row_number()) |>
+  select(naics, naics_abbr, naics_sort_order)
+
+top_counties_emp <- d_emp_sector_total_county |>
+  filter(year == 2021) |>
+  summarize(emp_sum = sum(emp),
+            .by = county_name) |>
+  slice_max(order_by = emp_sum, n = top_county_cutoff)
+
 ```
 
 The County Business Patterns data includes counts of establishments by number of workers. The category names embed the range. For example, `n1_4` includes establishments reporting 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
@@ -615,7 +635,7 @@ data_for_plot |>
   facet_wrap(. ~ naics_abbr, scales = "free_y") +
   guides(color = guide_legend(override.aes = c(linewidth = 3))) +
   labs(
-    title = "Percent of NC establishements in each employee size class\nby sector 2001-2021",
+    title = "Percent of NC establishments in each employee size class\nby sector 2001-2021",
     subtitle = "Top 9 sectors by number of establishments (in 2021) as reported in CBP",
     x = "",
     y = "Percent of establishments (scale varies)",
