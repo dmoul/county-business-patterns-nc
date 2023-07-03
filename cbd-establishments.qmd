@@ -411,7 +411,7 @@ top_counties_emp <- d_emp_sector_total_county |>
 
 ## Number of establishments in NC
 
-The County Business Patterns data includes counts of establishments, which is  an umbrella term referring to corporations, partnerships, non-profit organizations, etc.
+The County Business Patterns data refers to relevant organizations as *establishments*, a term that includes corporations, partnerships, non-profit organizations, etc.
 
 The CBP includes establishments categorized by employee size class. The range is embedded in the name. For example, `n1_4` includes a count of establishments with 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
 
