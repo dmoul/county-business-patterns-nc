@@ -496,6 +496,7 @@ For simplicity's sake, the plots below use sector abbreviations listed in @sec-t
 #| fig-height: 5
 #| fig-width: 7
 #| fig-cap: "NC state employment by sector 2021"
+#| fig-alt: "This bar plot lists employment sectors on the Y axis with counts of the number of employees in North Carolina in each in 2021. This information is available in table form in the last sction of this page."
 
 data_for_plot <- d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
@@ -527,6 +528,7 @@ The employment distribution across the sectors in NC and the USA overall is simi
 #| fig-height: 5
 #| fig-width: 7
 #| fig-cap: "NC employment by sector compared to USA 2021"
+#| fig-alt: "This  plot lists employment sectors on the Y axis with points indicating the percent of the employment in North Carolina and all 50 states. The percentages are similar for both."
 
 data_for_plot <- bind_rows(
   d_emp_sector_total_state_nc |>
@@ -592,6 +594,7 @@ The CBP includes employees categorized by employee size class. The range is embe
 #| fig-width: 12
 #| fig-cap: "NC workers in each employee size class 2021"
 #| column: page-inset-right
+#| fig-alt: "This bar chart lists employee size classes on the Y axis with percentage of employees in North Carolina in each in 2021. Size classes range from '1 to 4' up to '1000 or more'."
 
 data_for_plot <- d_emp_state_nc_total_size_classes |>
   filter(year == 2021) |>
@@ -647,6 +650,7 @@ p1 + p2 +
 #| fig-width: 12
 #| fig-cap: "Percent of NC workers in each employee size class by sector 2021"
 #| column: page-inset-right
+#| fig-alt: "This bar chart lists employee size classes on the Y axis with percentage of employees in North Carolina colored by industry sector. Data is for each in 2021. A second plot shows the same data spread out to show the distribution of industry sectors among the size classes. Two more plots provide similar information but with industry sectors on the Y axis."
 
 data_for_plot <- d_emp_state_nc_size_classes |>
   filter(year == 2021) |>
@@ -659,7 +663,7 @@ data_for_plot <- d_emp_state_nc_size_classes |>
 p1 <- data_for_plot |>
   ggplot() +
   geom_col(aes(x = pct_emp, y = emp_size_class, fill = naics_abbr),
-           alpha = 0.6) +
+           alpha = 0.6, show.legend = FALSE) +
   scale_x_continuous(labels = label_percent(accuracy = 1)) +
   scale_y_discrete(limits=rev) +
   labs(
@@ -676,7 +680,7 @@ p2 <- data_for_plot |>
   scale_y_discrete(limits=rev) +
   labs(
     x = "Distibution of size classes",
-    y = "Employee size class",
+    y = NULL,
     color = NULL
   )
 
@@ -684,7 +688,7 @@ p3 <- data_for_plot |>
   mutate(naics_abbr = fct_reorder(naics_abbr, emp, sum)) |>
   ggplot() +
   geom_col(aes(x = pct_emp, y = naics_abbr, fill = emp_size_class),
-           alpha = 0.6) +
+           alpha = 0.6, show.legend = FALSE) +
   scale_x_continuous(labels = label_percent(accuracy = 1)) +
   scale_fill_viridis_d(end = 0.85) +
   labs(
@@ -737,6 +741,7 @@ d_nc_2021_top5 <- d_emp_sector_total_county |>
 #| fig-height: 8
 #| fig-width: 10
 #| fig-cap: "Sector percent of country emplyment rank"
+#| fig-alt: "This plot shows the top 5 sectors for the 10 largest counties by employment in North Carolina, from the largest (Mecklenburg) to the tenth-largest (Catawba). Lines connect the same industry sector in adjacent columns. The Y axis is the percent of county employment."
 
 county_name_label <- d_emp_sector_total_county |> #d_sector_totals_county |>
   filter(year == 2021) |>
@@ -787,6 +792,7 @@ data_for_plot |>
 #| fig-height: 8
 #| fig-width: 10
 #| fig-cap: "Sector rank by number of employees"
+#| fig-alt: "Like the prior plot, this plot shows the top 5 sectors for the 10 largest counties by employment in North Carolina, from the largest (Mecklenburg) to the tenth-largest (Catawba). Lines connect the same industry sector in adaject columns. The difference is that Y axis is a simple ranking 1 to 5 of percent county employment."
 
 data_for_plot |>
   ggplot() +
@@ -820,6 +826,7 @@ data_for_plot |>
 #| fig-cap: "NC workers in each sector 2001-2021"
 #| column: page-inset-right
 #| warning: false
+#| fig-alt: "This line plot shows the number of employees in each sector from 2001 to 2021. A second plot shows the same data as a stacked area plot. A third plot below the others shows the percent change since 2021 on the Y axis and number of employees in 2021 on the X axis."
 
 data_for_plot <- d_emp_sector_total_state_nc |>
   filter(naics_abbr != "OtherInd") |>
@@ -916,6 +923,7 @@ Noise added to some data before release may be the cause of the jumpiness in som
 #| fig-width: 10
 #| fig-cap: "Percent of NC workers in each employee size class by sector"
 #| column: page-inset-right
+#| fig-alt: "This nine-panel line plot shows employee size class from 2001 to 2021 for the nine industry sectors employing the most poeple."
 
 data_for_plot <- d_emp_state_nc_size_classes |> # d_emp_state_nc_size_classes |> #d_sector_totals_state |>
   inner_join(n_employees_ref |>
@@ -952,6 +960,7 @@ The year over year drop in manufacturing jobs through 2012 is striking. As is th
 #| fig-height: 5
 #| fig-width: 7
 #| fig-cap: "Employment trend: top 5 sectors by number of employees"
+#| fig-alt: "This line plot shows the number of employees in each sector from 2001 to 2021."
 
 data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(top_naics,
@@ -992,6 +1001,7 @@ Utility workers' average wage declined in the years after the 2008 financial cri
 #| fig-height: 5
 #| fig-width: 7
 #| fig-cap: "Wage trend: top 5 sectors by average wage in 2021"
+#| fig-alt: "This line plot shows the trend in average wages from 2001 to 2021."
 
 top_wage <- d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
@@ -1039,14 +1049,13 @@ data_for_plot |>
 #| fig-width: 8
 #| fig-cap: "NC average wage trend by sector 2001-2021"
 #| warning: false
+#| fig-alt: "The first two line plot shows the trend in average wages by sector from 2001 to 2021. On the left are the two sectors where wages have declined; on the right are all the others. A third plot below the others shows the percent change in average wages since 2021 on the Y axis and number of employees in 2021 on the X axis."
 
 data_for_plot <- d_emp_sector_total_state_nc |>
   inner_join(d_infation_adj,
              by = "year") |>
   mutate(avg_wage_adjusted = avg_wage * adj) |>
-  mutate(#min_wage = min(avg_wage_adjusted),
-         #max_wage = min(avg_wage_adjusted),
-         wage_fist_year = avg_wage_adjusted[year == min(year)],
+  mutate(wage_fist_year = avg_wage_adjusted[year == min(year)],
          wage_last_year = avg_wage_adjusted[year == max(year)],
          .by = c("naics")) |>
   mutate(wage_diff = wage_last_year - wage_fist_year,
@@ -1119,7 +1128,8 @@ There is variation across counties too.
 #| fig-width: 8
 #| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
 #| column: page-inset-right
-  
+#| fig-alt: "This line plot shows the percent of state employees working in the 10 largest counties by employment. The data ranges from 2001 to 2021."  
+
 data_for_plot <- d_emp_total_county |> #state_nc |> #d_emp_state_nc_size_classes |>#d_emp_sector_total_county |>
   mutate(#naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp))
          county_name = fct_lump(county_name, n = 10, w = emp)) 
@@ -1161,9 +1171,10 @@ data_for_plot |>
 #| label: fig-county-naics-employees-size-class-time-series-pct
 #| fig-height: 12
 #| fig-width: 10
-#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
+#| fig-cap: "NC state employes by establishment size class and sector (percent) 2001-2021"
 #| column: page-inset-right
-  
+#| fig-alt: "This 80 panel plot shows percent of workers in each employee size class from 2001 to 2021. Each column of panels is an industry sector. Each row of panels is a county."    
+
 data_for_plot <- d_emp_county_nc_size_classes |>
   mutate(naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp),
          county_name = fct_lump(county_name, n = 10, w = emp),

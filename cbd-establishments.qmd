@@ -744,7 +744,7 @@ data_for_plot |>
 Sorted by percent difference from 2001 to 2021
 
 ```{r}
-#| label: tbl-state-nc-eest
+#| label: tbl-state-nc-est
 #| tbl-cap: "NC state establishments by sector 2021"
 #| tbl-cap-location: bottom
 
