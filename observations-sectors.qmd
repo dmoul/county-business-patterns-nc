@@ -6,7 +6,7 @@ A lot can change in twenty years.
 
 ## Heath and Social Welfare (HealthSoc)
 
-This sector grew from third-most employees to first before 2010 and has kept growing since then (@fig-state-employment-naics-timeseries), a 52% increase in employees (@fig-state-employment-naics-timeseries). Average wages grew 17%.
+This sector grew from third-most employees to first before 2010 and has kept growing since then (@fig-state-employment-naics-timeseries), a 52% increase in employees (@fig-state-employment-naics-timeseries). Average wages grew 17% (@tbl-state-nc-emp-wage-growth).
 
 ## Retail
 
@@ -18,19 +18,23 @@ Similarly, this sector has consistently had the most establishments (@fig-state-
 
 ## Manufacturing (Manuf)
 
-The loss of nearly a third of manufacturing jobs in the years 2001-2011 (@fig-state-employment-naics-timeseries) was the tail end of wrenching dislocations as small and medium-sized businesses lost out to foreign competition, notably in furniture and textiles. The loss was steepest in establishments with 100 or more employees. Smaller establishments have continued to disappear but at a slower and more consistent rate. The turnaround in later years is therefore very encouraging (@fig-rank-employment) however (A) the new growth didn't necessarily take place in the same counties; some of the growth is visible in the largest counties: Forsyth, Durham, Catawba, and Buncombe (@fig-county-naics-employees-size-class-time-series-pct); and (B) the growth occurred only in large establishments with 500 or more employees. I infer the continued loss of local companies, and the growth coming from national and international companies establishing plants in NC.
+The loss of nearly a third of manufacturing jobs in the years 2001-2011 (@fig-state-employment-naics-timeseries) was the tail end of wrenching dislocations as small and medium-sized businesses lost out to foreign competition, notably in furniture and textiles. The loss was steepest in establishments with 100 or more employees. Smaller establishments have continued to disappear but at a slower and more consistent rate. The turnaround in later years is therefore very encouraging (@fig-rank-employment) however (A) the new growth didn't necessarily take place in the same counties; some of the growth is visible in the largest counties: Forsyth, Durham, Catawba, and Buncombe (@fig-county-naics-employees-size-class-time-series-pct); and (B) the growth occurred only in large establishments with 500 or more employees. I infer the continued loss of local companies, and the growth coming from national and international companies establishing plants in NC. Employment is down 35% (@tbl-state-nc-emp-growth), which is the largest loss of any sector. Establishments are down 21% (@tbl-state-nc-est).
 
 ## Finance and Insurance (FinIns)
 
-This sector took a hit during and after the financial crisis of 2008+ in employment (@fig-state-employment-naics-timeseries), and the smallest establishments (@fig-state-establishments-pct-timeseries) but not in average wages (@fig-wage-trend-top-sectors). Since 2015 there has been growth in employment in the largest establishments (@fig-state-establishments-pct-timeseries). This sector has seen 67% average wage growth over 20 years, second only to Info (@fig-wage-trend-top-sectors).
+This sector took a hit during and after the financial crisis of 2008+ in employment (@fig-state-employment-naics-timeseries), and the smallest establishments (@fig-state-establishments-pct-timeseries) but not in average wages (@fig-wage-trend-top-sectors). Since 2015 there has been growth in employment in the largest establishments (@fig-state-establishments-pct-timeseries). This sector has seen 67% average wage growth over 20 years (@tbl-state-nc-emp-wage-growth), second only to Info (@fig-wage-trend-top-sectors).
 
 ## Information (Info)
 
-As the US and NC economy has transitioned to more of an *information* economy this sector has benefited greatly. Wages are up 68% in real terms over 20 years (@fig-wage-trend-top-sectors) while employment is up 8% as well (@fig-state-employment-naics-timeseries). It seems to me employment growth has been higher than this. Perhaps the short life of many high-tech companies creates churn without a lot of net growth, and outsourcing to less expensive countries has taken a toll.
+As the US and NC economy has transitioned to more of an *information* economy this sector has benefited greatly. Wages are up 68% in real terms over 20 years (@fig-wage-trend-top-sectors, @tbl-state-nc-emp-wage-growth) while employment is up 8% as well (@fig-state-employment-naics-timeseries). It seems to me employment growth has been higher than this. Perhaps the short life of many high-tech companies creates churn without a lot of net growth, and outsourcing to less expensive countries has taken a toll.
 
 ## Professional, Scientific, Technical (ProfSciTec)
 
-The number of employees in this sector has continued to grow: XX% since 2001 (@fig-state-employment-naics-timeseries). This occurred despite the number of very small establishments growing quickly in the first decade then leveling off (@fig-state-establishments-pct-timeseries). Average wages grew XX% over this time period in line with many other sectors @fig-wage-trend-top-sectors).
+The number of employees in this sector has continued to grow: 55% since 2001 (@fig-state-employment-naics-timeseries). This occurred despite the number of very small establishments growing quickly in the first decade then leveling off (@fig-state-establishments-pct-timeseries) and resulting in 47% growth in establishments (@tbl-state-nc-est). Average wages grew 32% over this time period in line with many other sectors @fig-wage-trend-top-sectors, @tbl-state-nc-emp-wage-growth).
+
+## Education (Educ)
+
+The number of education establishments increased 91% from a small base in 2001 to 3,269 in 2021 (@tbl-state-nc-est) and employment incresed 46% (@tbl-state-nc-emp-growth). I assume this growth is due to charter schools. Are public schools considered "public administration" and thus excluded from the CBP? I haven't looked closely enough to be sure.
 
 ## Statewide
 
