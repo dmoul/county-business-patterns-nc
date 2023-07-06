@@ -484,12 +484,15 @@ top_counties_emp <- d_emp_sector_total_county |>
   summarize(emp_sum = sum(emp),
             .by = county_name) |>
   slice_max(order_by = emp_sum, n = top_county_cutoff)
-  
+
+state_nc_workers_2021 <- d_emp_sector_total_state_nc |>
+  filter(year == 2021)
+
 ```
 
 ## NC employment by sector
 
-For simplicity's sake, the plots below use sector abbreviations listed in @sec-tables.
+In the state-level data for 2021 the CBP reported `r comma(sum(state_nc_workers_2021$emp))` workers in `r nrow(state_nc_workers_2021)` NAICS categories.
 
 ```{r fig.height=6, fig.width=8}
 #| label: fig-state-employment-by-sector-count
@@ -586,7 +589,9 @@ data_for_plot |>
 
 <br>
 
-The CBP includes employees categorized by employee size class. The range is embedded in the name. For example, `e1_4` includes a count of employees working in establishments with 1-4 employees. Let's assume that the average number of workers in each employment size class is about the midpoint of the class. I have assumed that `e1000` ("1000 or more employees) that the midpoint is 2000. From the perspective of workers, what are the most common employer size classes?
+The CBP state data includes employee counts categorized by employee size class. The range is embedded in the name. For example, `e1_4` includes a count of employees working in establishments with 1-4 employees. Let's assume that the average number of workers in each employment size class is about the midpoint of the class, and for `e1000` ("1000 or more employees) that the midpoint is 2000. 
+
+Then we can answer the question: from the perspective of workers, what are the most common employer size classes? Or asking another way: if one randomly selected a NC worker what is the probability the person would work in an establishment of a particular size class?
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-workers
@@ -643,6 +648,8 @@ p1 + p2 +
 ```
 
 <br>
+
+Further categorizing this data by industry sector reveals which industries have concentrations of workers in establishments of particular size classes. Employees in AccFood tend to work in establishments in the 10 to 100 employee range. In Retail there is a wider range: from very small to 499 employees and almost none larger. The industry sectors with the largest portion of employees working for the largest establishments are HeathSoc (hospital systems, I assume) and FinIns. Consruction and ProfSciTech have the largest portion of employees in the sectory working in 1-4 employee establishments.
 
 ```{r fig.height=8, fig.width=12}
 #| label: fig-state-establishments-employees-naics-pct-two-plot
@@ -817,7 +824,7 @@ data_for_plot |>
 
 <br>
 
-## Trends in employment and average wages statewide
+## Trends in employment statewide
 
 ```{r fig.height=10, fig.width=12}
 #| label: fig-state-employment-naics-timeseries
@@ -992,6 +999,94 @@ data_for_plot |>
 
 <br>
 
+## Trends in employment - top counties
+
+There is variation across counties too.
+
+```{r fig.height=6, fig.width=8}
+#| label: fig-county-naics-employees-sector-totals-time-series-pct
+#| fig-height: 6
+#| fig-width: 8
+#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
+#| column: page-inset-right
+#| fig-alt: "This line plot shows the percent of state employees working in the 10 largest counties by employment. The data ranges from 2001 to 2021."  
+
+data_for_plot <- d_emp_total_county |> #state_nc |> #d_emp_state_nc_size_classes |>#d_emp_sector_total_county |>
+  mutate(#naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp))
+         county_name = fct_lump(county_name, n = 10, w = emp)) 
+
+d_county_name_levels <- data_for_plot |> 
+  filter(year == 2021,
+         county_name != "Other") |>
+  arrange(-pct_emp) |>
+  mutate(county_name_level = row_number()) |>
+  select(county_name, county_name_level)
+
+data_for_plot |>
+  filter(naics_abbr != "Other",
+         county_name != "Other") |>
+  inner_join(d_county_name_levels,
+             by = "county_name") |>
+  mutate(county_name = fct_reorder(county_name, county_name_level)) |>
+  ggplot() +
+  geom_line(aes(x = year, y = pct_emp, color = county_name),
+           linewidth = 0.4, alpha = 0.6) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.01)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Percent of state workers 2001-2021",
+    subtitle = glue("All sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
+                    "\nConsidering 'Statewide' as a county for this plot"),
+    x = "",
+    y = "Percent of employees (scale varies by row)",
+    color = NULL,
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+```{r fig.height=12, fig.width=10}
+#| label: fig-county-naics-employees-size-class-time-series-pct
+#| fig-height: 12
+#| fig-width: 10
+#| fig-cap: "NC state employes by establishment size class and sector (percent) 2001-2021"
+#| column: page-inset-right
+#| fig-alt: "This 80 panel plot shows percent of workers in each employee size class from 2001 to 2021. Each column of panels is an industry sector. Each row of panels is a county."    
+
+data_for_plot <- d_emp_county_nc_size_classes |>
+  mutate(naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp),
+         county_name = fct_lump(county_name, n = 10, w = emp),
+         county_name = fct_rev(county_name)) 
+
+data_for_plot |>
+  filter(naics_abbr != "Other",
+         county_name != "Other") |>
+  ggplot() +
+  geom_line(aes(x = year, y = pct_emp, color = emp_size_class, group = emp_size_class),
+           linewidth = 0.4, alpha = 0.6) +
+  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
+  facet_grid(county_name ~ naics_abbr, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
+  labs(
+    title = "Percent of workers in each employee size class\nby sector and county 2001-2021",
+    subtitle = "Top 8 sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
+    x = "",
+    y = "Percent of employees (scale varies by row)",
+    color = NULL,
+    caption = my_caption
+  )
+  
+```
+
+<br>
+
+## Trends in average wages statewide
+
 Average wage trends are not uniform across sectors. Wages in four of the five highest paying sectors grew faster than inflation while it dropped in "Management". I wonder if the drop in the average wage of the management sector is due to manufacturing and financial services disruptions set in motion by the 2008 financial crisis and the COVID-19 pandemic. Or perhaps managers are getting a smaller portion of their income in wages.
 
 Utility workers' average wage declined in the years after the 2008 financial crisis and returned to growth in recent years. I wonder why the average wage of utility sector works nearly doubled in 2009 (and only then). That year no major hurricanes hit NC (which is the only likely "one year disruption" I can think of).
@@ -1118,107 +1213,21 @@ p1 / p2 +
 
 <br>
 
-## Trends in employment in top counties
-
-There is variation across counties too.
-
-```{r fig.height=6, fig.width=8}
-#| label: fig-county-naics-employees-sector-totals-time-series-pct
-#| fig-height: 6
-#| fig-width: 8
-#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
-#| column: page-inset-right
-#| fig-alt: "This line plot shows the percent of state employees working in the 10 largest counties by employment. The data ranges from 2001 to 2021."  
-
-data_for_plot <- d_emp_total_county |> #state_nc |> #d_emp_state_nc_size_classes |>#d_emp_sector_total_county |>
-  mutate(#naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp))
-         county_name = fct_lump(county_name, n = 10, w = emp)) 
-
-d_county_name_levels <- data_for_plot |> 
-  filter(year == 2021,
-         county_name != "Other") |>
-  arrange(-pct_emp) |>
-  mutate(county_name_level = row_number()) |>
-  select(county_name, county_name_level)
-
-data_for_plot |>
-  filter(naics_abbr != "Other",
-         county_name != "Other") |>
-  inner_join(d_county_name_levels,
-             by = "county_name") |>
-  mutate(county_name = fct_reorder(county_name, county_name_level)) |>
-  ggplot() +
-  geom_line(aes(x = year, y = pct_emp, color = county_name),
-           linewidth = 0.4, alpha = 0.6) +
-  scale_y_continuous(labels = label_percent(accuracy = 0.01)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Percent of state workers 2001-2021",
-    subtitle = glue("All sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
-                    "\nConsidering 'Statewide' as a county for this plot"),
-    x = "",
-    y = "Percent of employees (scale varies by row)",
-    color = NULL,
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
-```{r fig.height=12, fig.width=10}
-#| label: fig-county-naics-employees-size-class-time-series-pct
-#| fig-height: 12
-#| fig-width: 10
-#| fig-cap: "NC state employes by establishment size class and sector (percent) 2001-2021"
-#| column: page-inset-right
-#| fig-alt: "This 80 panel plot shows percent of workers in each employee size class from 2001 to 2021. Each column of panels is an industry sector. Each row of panels is a county."    
-
-data_for_plot <- d_emp_county_nc_size_classes |>
-  mutate(naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp),
-         county_name = fct_lump(county_name, n = 10, w = emp),
-         county_name = fct_rev(county_name)) 
-
-data_for_plot |>
-  filter(naics_abbr != "Other",
-         county_name != "Other") |>
-  ggplot() +
-  geom_line(aes(x = year, y = pct_emp, color = emp_size_class, group = emp_size_class),
-           linewidth = 0.4, alpha = 0.6) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
-  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
-  facet_grid(county_name ~ naics_abbr, scales = "free_y") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Percent of workers in each employee size class\nby sector and county 2001-2021",
-    subtitle = "Top 8 sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
-    x = "",
-    y = "Percent of employees (scale varies by row)",
-    color = NULL,
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
 ## Tables {#sec-tables}
 
 Below are the sector summary categories used in the CBP. To simplify plotting, I created some abbreviations:
 
 ```{r}
 #| label: tbl-sector-abbreviations
-#| tbd-cap: "NAICS sector descriptions and abbreviations"
+#| tbl-cap: "NAICS sector categories and abbreviations"
+#| tbl-cap-location: bottom
 
 d_naics_abbr_ref |>
   arrange(naics_abbr_num) |>
   select(naics_abbr, naics_descr) |>
   mutate(rowid = row_number()) |>
   gt() |>
-  tab_header(md(glue("**NC state sector employment 2021**",
-                     "<br>*Sum of county sector totals*"))) |>
+  tab_header(md(glue("**NAICS categories and abbreviations used in this analysis**"))) |>
   tab_source_note(md("*US Census County Business Patterns; analysis by Daniel Moul*")) |>
   tab_options(table.font.size = 10)
   
