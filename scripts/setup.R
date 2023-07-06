@@ -16,6 +16,7 @@ library(ggrepel)
 library(purrr)
 library(geomtextpath)
 library(patchwork)
+library(geofacet)
 
 theme_set(theme_light() +
             theme(panel.grid.major = element_blank(),
