@@ -7,8 +7,8 @@ book:
   date: today
   chapters:
     - index.qmd
-    - cbd-employment-wages.qmd
-    - cbd-establishments.qmd
+    - cbp-employment-wages.qmd
+    - cbp-establishments.qmd
     - observations-sectors.qmd
     - notes.qmd
 

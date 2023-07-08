@@ -1063,21 +1063,26 @@ data_for_plot |>
 
 ## Trends in employment - counties
 
-```{r fig.height=6, fig.width=12}
+```{r fig.height=8, fig.width=14}
 #| label: fig-county-employees-sector-totals-time-series-pct
-#| fig-height: 6
-#| fig-width: 12
+#| fig-height: 8
+#| fig-width: 14
 #| fig-cap: "NC state employees by county (percent) 2021-2021"
 #| column: page-inset-right
-#| fig-alt: "This line plot shows the percent of state employees working in the 10 largest counties by employment. The data ranges from 2001 to 2021."  
+#| fig-alt: "This line plot shows the growth of each NC county from 2001 to 2021 plus the same information grouped into three groups by the number of workers in the county."
 
-data_for_plot <- d_emp_total_county |> # emp in 2001 = 1
+data_for_plot <- d_emp_total_county |>
   filter(county_name != "Statewide, NC") |>
+  arrange(year) |>
   mutate(pct_growth_since_2001 = emp / emp[year == min(year)],
          pct_growth_full_period = pct_growth_since_2001[year == max(year)],
-         # xstart = lag(emp),
-         # ystart = lag(pct_growth_since_2001),
-         .by = c(fipscty))
+         pct_emp_diff_yty = emp / lag(emp) - 1,
+         .by = c(fipscty)) |>
+  mutate(size_group = case_when(
+    emp < 1e4                ~ "group 1: small\nemp < 10K",
+    emp < 1e5                ~ "group 2: medium\n10K < emp < 100K",
+    emp >= 1e5               ~ "group 3: large\nemp > 100K"
+  ))
 
 labels_for_plot_tmp <- data_for_plot |>
   filter(year == max(year)) 
@@ -1094,10 +1099,11 @@ n_smaller <- data_for_plot |>
   filter(pct_growth_full_period < 1) |>
   nrow()
 
-  p1 <- data_for_plot |>
+p1 <- data_for_plot |>
   ggplot() +
+  geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
   geom_line(aes(x = year, y = pct_growth_since_2001, group = county_name, color = pct_growth_full_period),
-           linewidth = 0.4, alpha = 0.6, show.legend = FALSE) + #color = carolina_blue, 
+            linewidth = 0.4, alpha = 0.6, show.legend = FALSE) +
   geom_text_repel(data = labels_for_plot,
                   aes(x = year + 0.5, y = pct_growth_full_period, label = county_name),
                   direction = "y", hjust = 0, vjust = 0.5, size = 3,
@@ -1105,42 +1111,64 @@ n_smaller <- data_for_plot |>
                   seed = 123,
                   show.legend = FALSE) +
   scale_color_viridis_c(end = 0.85) +
-  expand_limits(x = 2025) +
+  expand_limits(x = 2027) +
   labs(
-    subtitle = "my subtitle",
-    x = "County employment",
+    subtitle = "County growth trajectories - all counties",
+    x = NULL,
     y = "Growth (2001 = 1)"
   )
-  
-  p2 <- data_for_plot |>
-  filter(year == 2021) |>
-  ggplot(aes(x = emp, y = pct_growth_full_period, color = pct_growth_full_period)) +
-  geom_point(size = 2, alpha = 0.6, show.legend = FALSE) +
+
+p2 <- data_for_plot |>
+  ggplot() +
   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
+  geom_line(aes(x = year, y = pct_growth_since_2001, group = county_name, color = pct_growth_full_period),
+            linewidth = 0.4, alpha = 0.6, show.legend = FALSE) +
   geom_text_repel(data = labels_for_plot,
-                  aes(label = county_name),
-                  hjust = 1, vjust = 0.5, size = 3,
+                  aes(x = year + 0.5, y = pct_growth_full_period, label = county_name),
+                  direction = "y", hjust = 0, vjust = 0.5, size = 3,
+                  min.segment.length = unit(1, "cm"), force_pull = 100,
+                  seed = 123,
                   show.legend = FALSE) +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
   scale_color_viridis_c(end = 0.85) +
+  facet_wrap( ~ size_group) +
+  expand_limits(x = 2027) +
   labs(
-    subtitle = glue("The counties with the largest growth and decline are among the counties",
-                    "\n with low-to mid-range number of workers"),
-    x = "County employment in 2021 (log10 scale)",
-    y = NULL
+    subtitle = "County growth trajectories - grouped by number of workers in the county",
+    x = NULL,
+    y = "Growth (2001 = 1)"
   )
+
+  
+# p2 <- data_for_plot |>
+#   filter(year == 2021) |>
+#   ggplot(aes(x = emp, y = pct_growth_full_period, color = pct_growth_full_period)) +
+#   geom_point(size = 2, alpha = 0.6, show.legend = FALSE) +
+#   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
+#   geom_text_repel(data = labels_for_plot,
+#                   aes(label = county_name),
+#                   hjust = 1, vjust = 0.5, size = 3,
+#                   show.legend = FALSE) +
+#   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+#   scale_color_viridis_c(end = 0.85) +
+#   labs(
+#     subtitle = glue("The counties with the largest growth and decline are among the counties",
+#                     "\nwith low to mid-range number of workers"),
+#     x = "County employment in 2021 (log10 scale)",
+#     y = NULL
+#   )
   
   # TODO: rework this or delete it
   # p2 <- data_for_plot |>
   #   #filter(year == 2021) |>
-  #   filter(county_name %in% c("Orange", "Durham")) |>
+  #   #filter(county_name %in% head(county_name, 50)) |> #c("Orange", "Durham")
   #   ggplot() +
-  #   geom_segment(aes(x = lag(emp, default = NA), xend = emp, y = lag(pct_growth_since_2001), yend = pct_growth_since_2001, 
-  #                    color = year, group = county_name),
-  #                size = 0.6, alpha = 0.6, na.rm = TRUE) +
-  #   # geom_line(aes(x = emp, y = pct_growth_since_2021, color = year, group = county_name),
-  #   #           size = 0.6, alpha = 0.6) + #, arrow = arrow(length = unit(2, "mm"), ends = "last")) + 
+  #   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
+  #   geom_path(aes(x = emp, y = pct_growth_since_2001, color = year, group = county_name),
+  #             size = 0.6, alpha = 0.6) + #, arrow = arrow(length = unit(1, "mm"), type = "closed")) + #, ends = "last"
+  #   geom_point(aes(x = emp, y = pct_growth_full_period, color = year),
+  #              size = 1, alpha = 0.6, show.legend = FALSE) +
   #   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  #   #scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
   #   scale_color_viridis_c(end = 0.85) +
   #   labs(
   #     x = "County employment in 2021 (log10 scale)",
@@ -1148,10 +1176,12 @@ n_smaller <- data_for_plot |>
   #   )
   
   p1 + p2 +
+    plot_layout(widths = c(1, 3)) +
     plot_annotation(
-      title = "County growth trajectories 2001-2021",
+      title = "County employee growth trajectories 2001-2021",
       subtitle = glue("{n_smaller} of 100 counties ended the period with fewer workers", 
-                      "; as reported in CBP; excludes 'Statewide'"),
+                      "; as reported in CBP; excludes 'Statewide'",
+                      "; with names of counties with most growth and decline"),
       caption = my_caption
     )
   
@@ -1165,8 +1195,9 @@ n_smaller <- data_for_plot |>
 #| fig-height: 10
 #| fig-width: 24
 #| column: screen-inset-right
+#| fig-alt: "This plot shows the number of workers in each NC county in the years 2001-2021. It offers a facet for each NC county placed in the approximate geographical location of the county."
 
-data_for_plot <- d_emp_total_county |> # emp in 2001 = 1
+data_for_plot <- d_emp_total_county |>
   filter(county_name != "Statewide, NC") |>
   mutate(pct_growth_since_2001 = emp / emp[year == min(year)],
          pct_growth_full_period = pct_growth_since_2001[year == max(year)],
@@ -1177,31 +1208,28 @@ data_for_plot <- d_emp_total_county |> # emp in 2001 = 1
 data_for_plot |>
   ggplot() +
   geom_rect(aes(xmin = min(year) - 1, xmax = max(year) + 1, 
-                ymin = min(emp) , ymax = max(emp),
+                ymin = min(emp) - 0.05 * min(emp), ymax = max(emp) + 0.05 * max(emp),
                 fill = fill_color),
-            alpha = 0.02, show.legend = FALSE) +
-  #geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.3) +
+            alpha = 0.01, show.legend = FALSE) +
   geom_line(aes(x = year, y = emp), 
             show.legend = FALSE) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
-  #scale_y_log10() +
+  scale_x_continuous(breaks = c(2001, 2011, 2021),
+                     expand = expansion(mult = c(0,0))) +
+  scale_y_continuous(breaks = c(0, 2e5, 4e5, 6e5),
+                     labels = label_number(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0.02,0))) +
   scale_fill_viridis_d(end = 0.85) +
-  #expand_limits(x = c(min(data_for_plot$year) - 5, max(data_for_plot$year) + 5)) +
   facet_geo( ~ county_name,
-             #scales = "free_y",
              grid = "us_nc_counties_grid1") +
   theme(panel.grid = element_blank(),
         axis.title.y = element_text(hjust = 1),
-        # axis.text.y = element_blank(),
-        # axis.ticks.y = element_blank(),
+        axis.text.x = element_text(angle = 60, hjust = 1),
         plot.title = element_text(size = rel(3.0), face = "bold"),
         legend.position = "top") +
-  labs(title = "NC employment by county 2001-2021", 
+  labs(title = "Employment in NC counties 2001-2021", 
        subtitle = glue("Green cells indicate higher employment at end of period"),
        x = NULL,
-       y = "Change in employment year-to-year",
-       # fill = "Race",
-       # color = "Race",
+       y = "Number of workers",
        caption = my_caption)
 
 ```
@@ -1214,8 +1242,9 @@ data_for_plot |>
 #| fig-height: 10
 #| fig-width: 24
 #| column: screen-inset-right
+#| fig-alt: "This plot shows the year-to-year growth in the number of workers in each NC county in the years 2001-2021. It offers a facet for each NC county placed in the approximate geographical location of the county."
 
-data_for_plot <- d_emp_total_county |> # emp in 2001 = 1
+data_for_plot <- d_emp_total_county |>
   filter(county_name != "Statewide, NC") |>
   mutate(pct_growth_since_2001 = emp / emp[year == min(year)],
          pct_growth_full_period = pct_growth_since_2001[year == max(year)],
@@ -1226,83 +1255,35 @@ data_for_plot <- d_emp_total_county |> # emp in 2001 = 1
 data_for_plot |>
   ggplot() +
   geom_rect(aes(xmin = min(year) - 1, xmax = max(year) + 1, 
-                ymin = min(pct_growth_since_2001) - 0.01, ymax = max(pct_growth_since_2001) + 0.01,
+                ymin = min(pct_growth_since_2001) - 0.05, ymax = max(pct_growth_since_2001) + 0.05,
                 fill = fill_color),
-            alpha = 0.02, show.legend = FALSE) +
+            alpha = 0.01, show.legend = FALSE) +
   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.3) +
   geom_line(aes(x = year, y = pct_growth_since_2001), 
             show.legend = FALSE) +
-  scale_x_continuous(breaks = c(2001, 2011, 2021)) +
+  scale_x_continuous(breaks = c(2001, 2011, 2021),
+                     expand = expansion(mult = c(0,0))) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0,0))) +
   scale_fill_viridis_d(end = 0.85) +
-  #expand_limits(x = c(min(data_for_plot$year) - 5, max(data_for_plot$year) + 5)) +
   facet_geo( ~ county_name,
-             #scales = "free_y",
              grid = "us_nc_counties_grid1") +
   theme(panel.grid = element_blank(),
         axis.title.y = element_text(hjust = 1),
-        # axis.text.y = element_blank(),
-        # axis.ticks.y = element_blank(),
+        axis.text.x = element_text(angle = 60, hjust = 1),
         plot.title = element_text(size = rel(3.0), face = "bold"),
         legend.position = "top") +
-  labs(title = "Year-to-year change in NC employment by county 2001-2021", 
+  labs(title = "Year-to-year change in employment in NC counties 2001-2021", 
        subtitle = glue("2001 = 1; green cells indicate higher employment at end of period"),
        x = NULL,
-       y = "Change in employment year-to-year",
-       # fill = "Race",
-       # color = "Race",
+       y = "Change in employment",
        caption = my_caption)
 
 ```
 
 <br>
 
-
-There is variation across counties too.
-
-```{r fig.height=6, fig.width=8}
-#| label: fig-county-naics-employees-sector-totals-time-series-pct
-#| fig-height: 6
-#| fig-width: 8
-#| fig-cap: "NC state employes by establishment size class and sector (percent) 2021-2021"
-#| column: page-inset-right
-#| fig-alt: "This line plot shows the percent of state employees working in the 10 largest counties by employment. The data ranges from 2001 to 2021."  
-
-data_for_plot <- d_emp_total_county |> #state_nc |> #d_emp_state_nc_size_classes |>#d_emp_sector_total_county |>
-  mutate(#naics_abbr = fct_lump(naics_abbr, n = 8, w = pct_emp))
-         county_name = fct_lump(county_name, n = 10, w = emp)) 
-
-d_county_name_levels <- data_for_plot |> 
-  filter(year == 2021,
-         county_name != "Other") |>
-  arrange(-pct_emp) |>
-  mutate(county_name_level = row_number()) |>
-  select(county_name, county_name_level)
-
-data_for_plot |>
-  filter(naics_abbr != "Other",
-         county_name != "Other") |>
-  inner_join(d_county_name_levels,
-             by = "county_name") |>
-  mutate(county_name = fct_reorder(county_name, county_name_level)) |>
-  ggplot() +
-  geom_line(aes(x = year, y = pct_emp, color = county_name),
-           linewidth = 0.4, alpha = 0.6) +
-  scale_y_continuous(labels = label_percent(accuracy = 0.01)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  guides(color = guide_legend(override.aes = c(linewidth = 3))) +
-  labs(
-    title = "Percent of state workers 2001-2021",
-    subtitle = glue("All sectors in largest 10 largest counties by employment (in 2021) as reported in CBP",
-                    "\nConsidering 'Statewide' as a county for this plot"),
-    x = "",
-    y = "Percent of employees (scale varies by row)",
-    color = NULL,
-    caption = my_caption
-  )
-  
-```
-
-<br>
+There is variation in the industry sectors, counties, and employee size classes.
 
 ```{r fig.height=12, fig.width=10}
 #| label: fig-county-naics-employees-size-class-time-series-pct
