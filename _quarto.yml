@@ -15,19 +15,10 @@ book:
     - notes.qmd
 
 execute:
-  #cache: true
   freeze: auto  # re-render only when source changes
-#  echo: false
   
-#bibliography: references.bib
-
 format:
   html:
     theme: cosmo
     code-fold: true
     code-summary: "Show the code"
-#  pdf:
-#    documentclass: scrreprt
-
-
-

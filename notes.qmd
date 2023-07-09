@@ -2,7 +2,7 @@
 
 ## Introduction
 
-I learned about this data from Jeremy Singer-Vines' [Data Is Plural](https://data-is-plural.com) — 2023.05.31 edition
+I learned about this data from Jeremy Singer-Vines' [Data Is Plural](https://data-is-plural.com) 2023.05.31 edition
 
 > Local business. Despite the name, the Census Bureau’s County Business Patterns datasets cover a range of geographic units, including states, congressional districts, metro areas, counties, and ZIP codes. Generated from the Bureau’s confidential Business Register, they provide the number of establishments and (noise-infused) employee counts and payroll figures, disaggregated by industry code. Last month, the Bureau released the data for 2021. Historical availability varies; the Bureau directly provides data for counties back to 1986, and for ZIP codes back to 1994, for example. Fabian Eckert and colleagues, meanwhile, have converted two older archives of the records into comparable data, spanning 1946 to 1974 and 1975 onward.
 
@@ -10,7 +10,7 @@ For an overview see <https://www.census.gov/programs-surveys/cbp.html>
 
 ## Sources and reference files
 
-I downloaded data from <https://www.census.gov/data/datasets/2021/econ/cbp/2021-cbp.html> on 2023-06-04. Specifically: Complete County File [102.9 MB] <https://www2.census.gov/programs-surveys/cbp/datasets/2021/cbp21co.zip>
+I downloaded data from <https://www.census.gov/data/datasets/2021/econ/cbp/2021-cbp.html> on 2023-06-04. Specifically: Complete County File [102.9 MB] <https://www2.census.gov/programs-surveys/cbp/datasets/2021/cbp21co.zip> and all years from 2001 onward.
 
 The CSV files are like this:
 
