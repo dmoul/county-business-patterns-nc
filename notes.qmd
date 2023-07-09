@@ -2,27 +2,20 @@
 
 ## Introduction
 
-From Jeremy Singer-Vines' [Data Is Plural](data-is-plural.com) — 2023.05.31 edition
+I learned about this data from Jeremy Singer-Vines' [Data Is Plural](https://data-is-plural.com) — 2023.05.31 edition
 
 > Local business. Despite the name, the Census Bureau’s County Business Patterns datasets cover a range of geographic units, including states, congressional districts, metro areas, counties, and ZIP codes. Generated from the Bureau’s confidential Business Register, they provide the number of establishments and (noise-infused) employee counts and payroll figures, disaggregated by industry code. Last month, the Bureau released the data for 2021. Historical availability varies; the Bureau directly provides data for counties back to 1986, and for ZIP codes back to 1994, for example. Fabian Eckert and colleagues, meanwhile, have converted two older archives of the records into comparable data, spanning 1946 to 1974 and 1975 onward.
 
-This might make a nice addition to my nc-trends exploration.
-
-In nc-trends nearly everything used county aggregation. So I'll start here with counties too.
-
-I'll start with 2021, then add 2011, then perhaps go back further and/or fill in interim years.
-
 For an overview see <https://www.census.gov/programs-surveys/cbp.html>
 
-## Source and reference files
+## Sources and reference files
 
-Data from <https://www.census.gov/data/datasets/2021/econ/cbp/2021-cbp.html> downloaded 2023-06-04. Specifically: Complete County File [102.9 MB] <https://www2.census.gov/programs-surveys/cbp/datasets/2021/cbp21co.zip>
+I downloaded data from <https://www.census.gov/data/datasets/2021/econ/cbp/2021-cbp.html> on 2023-06-04. Specifically: Complete County File [102.9 MB] <https://www2.census.gov/programs-surveys/cbp/datasets/2021/cbp21co.zip>
 
-It's a CSV that looks like this:
+The CSV files are like this:
 
 ```
-
-(base) dmoul@dmoul-mbp raw % cat cbp21co.txt | head
+% cat cbp21co.txt | head
 "fipstate","fipscty","naics","emp_nf","emp","qp1_nf","qp1","ap_nf","ap","est","n<5","n5_9","n10_19","n20_49","n50_99","n100_249","n250_499","n500_999","n1000","n1000_1","n1000_2","n1000_3","n1000_4"
 "01","001","------","G",11216,"G",97944,"G",424826,924,442,222,118,100,31,8,"N","N","N","N","N","N","N"
 "01","001","11----","G",78,"G",1325,"G",5107,10,9,"N","N","N","N","N","N","N","N","N","N","N","N"
@@ -33,7 +26,6 @@ It's a CSV that looks like this:
 "01","001","115///","J",10,"J",112,"J",544,3,3,"N","N","N","N","N","N","N","N","N","N","N","N"
 "01","001","21----","G",87,"G",1224,"G",5144,6,"N","N","N","N","N","N","N","N","N","N","N","N","N"
 "01","001","212///","G",87,"G",1224,"G",5144,6,"N","N","N","N","N","N","N","N","N","N","N","N","N"
-(base) dmoul@dmoul-mbp raw % 
 
 ```
 
@@ -120,8 +112,6 @@ NOTE: Noise Flag definitions (fields ending in _NF) are:
 
 North American Industry Classification System (NAICS) Descriptions [<1.0 MB] <https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics2017.txt>
 
-Note: the naics2017.txt file has 2004 lines. I will need to decide how to aggregate. Perhaps use only the two-digit categories?
-
 ```
 "NAICS","DESCRIPTION"
 "------","Total for all sectors"
@@ -166,105 +156,7 @@ Note: NC FIPS state code is "37"
 
 <br>
 
+The categories and codes changed a lot over the decades. I considered using Ekert et al.'s method^[Fabian Eckert, Teresa C. Fort, Peter K. Schott, and Natalie J. Yang. "Imputing Missing Values in the US Census Bureau's County Business Patterns." 
+NBER Working Paper #26632, 2021. Data and documentation at <https://www.fpeckert.me/cbp/> ] to deal with this (and I made an attempt). However I found it difficult to be sure I was implementing the method correctly, so I limited my usage to sector totals to minimize the impact of changing categories... as well as limiting myself to data starting in 2001 by which time the categories and codes were much more stable.
 
-Other data sets and reference files
-
-2011
-
-* https://www2.census.gov/programs-surveys/cbp/datasets/2011/cbp11co.zip
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/noise-layout/county_layout.txt (saved as county_layout11.txt)
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics2007.txt
-
-2001
-
-* https://www2.census.gov/programs-surveys/cbp/datasets/2001/cbp01co.zip
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/full-layout/county_layout.txt  (saved as county_layout01.txt)
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/reference/naics-descriptions/naics.txt (saved as naics01.txt)
-
-1991
-
-* https://www2.census.gov/programs-surveys/cbp/datasets/1991/cbp91co.zip
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/full-layout/county_layout_sic.txt (saved as county_layout_sic91.txt)
-* https://www2.census.gov/programs-surveys/cbp/technical-documentation/records-layouts/sic-code-descriptions/sic88_97.txt
-
-
-The codes changed a lot over the decades. Fortunately there is <https://www.fpeckert.me/cbp/>
-
-```
-County Business Patterns Database
-by Fabian Eckert, Teresa C. Fort, Peter K. Schott, and Natalie J. Yang
-
-Fabian Eckert, Teresa C. Fort, Peter K. Schott, and Natalie J. Yang. 
-"Imputing Missing Values in the US Census Bureau's County Business Patterns." 
-NBER Working Paper #26632, 2021
-
-```
-
-According to the readme http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_concordance_revised.txt
-
-```
-Using the industry concordances:
-
-Each concordance has four columns:
-(input ind code) -- Industry code vintage to be converted
-(output ind code)-- Corresponding industry code in subsequent vintage
-mappings		-- Count of number of mappings
-wt_mappings	-- Mapping weight
-
-Download the concordance corresponding to the correct CBP year.
-    Years	|   Input industry code
-----------------+----------------------------
-1977-1987	| SIC77
-1988-1997	| SIC87
-1998-2002	| NAICS97
-2003-2007	| NAICS02
-2008-2011	| NAICS07
-
-To convert between successive industry code vintages, merge the concordance to the data 
-by the (orig ind code), multiply the original employment count by the weight to 
-get the (output ind code) employment, and collapse by FIPS code and (output ind code). 
-Concordances can be joined together to convert to later vintages.
-
-```
-
-I'm only interested in a small number of category codes. Perhaps I can work backward to get them, then forward to calculate comparable employment counts.
-
-
-From the draft paper (Jan 2021) https://www.fpeckert.me/cbp/efsy.pdf
-
->Prior to 1998, employment is classified using the Standard Industry Classification (SIC) system, while employment thereafter is expressed according to the North American Industry Classification System (NAICS)
-
-
-Panel with Harmonized 2012 NAICS Industry Codes http://fpeckert.me/cbp/Imputed%20Files/efsy_panel_naics.csv.zip
-
-http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_panel.txt
-
-
->The NAICS long panel records employment at the most detailed industry-county level of aggregation possible. The sum of all observations in this panel represents the national total. For reasons explained in detail in our working paper, it is not always possible to assign employment to a six-digit NAICS code. In these cases, the employment is attributed to a more aggregate code, e.g., 11////.   
->
->We note that unlike in the raw CBP data and the text, where we describe codes such as 11//// as a root that contains the sum of all codes that are more detailed than 11////, that is not what codes of this form represent in the long panel. Instead, the roots in this dataset contain the remainder of 11//// employment that we could not assign to a more disaggregated NAICS code.  Users can obtain the total 11//// employment by summing employment over all codes that start with 11.
-
-
-fipscty = 999 is Statewide employment not attributable to any specific county. It's not a statewide sum. According to Figure 4: Share of Employment in 999 Counties (page 19) in the draft paper, this percentage nationwide has grown from about 1% to about 5% between 1980 and 2020.
-
-I have yet to find the actual transformed data or clear instructions how to transform what I download from the CPB web pages.
-
-Trying http://fpeckert.me/cbp/Imputed%20Files/efsy_2016.zip
-
-See related http://fpeckert.me/cbp/Imputed%20Files/efsy_readme_raw.txt
-
-
-# Moved to RStudio daily build
-
-To address https://github.com/rstudio/rstudio/issues/13188
-
-```
-Error in exists(cacheKey, where = .rs.WorkingDataEnv, inherits = FALSE) : 
-  invalid first argument
-Error in assign(cacheKey, frame, .rs.CachedDataEnv) : 
-  attempt to use zero-length variable name
-```
-
-On 2023-06-25 I installed RStudio-2023.06.1-438.dmg within an hour of earlier installing RStudio-2023.06.0-421.dmg.
-
-I have to remember to move to a stable build in the future.
+<br>
