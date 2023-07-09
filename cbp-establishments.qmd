@@ -409,17 +409,19 @@ top_counties_emp <- d_emp_sector_total_county |>
 
 ```
 
-## Number of establishments in NC
+## Introduction
 
-The County Business Patterns data refers to relevant organizations as *establishments*, a term that includes corporations, partnerships, non-profit organizations, etc.
+The County Business Patterns data uses the general term *establishment* to refer to corporations, partnerships, non-profit organizations, etc.
 
-The CBP includes establishments categorized by employee size class. The range is embedded in the name. For example, `n1_4` includes a count of establishments with 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
+The CBP data includes establishments categorized by employee size class. The range is embedded in the name. For example, `n1_4` includes a count of establishments with 1-4 employees. The category `n1000` includes establishments with 1,000 or more employees.
 
-For simplicity's sake, the plots below that reference sectors use the sector abbreviations listed in @sec-tables.
+The plots below that reference sectors use the sector abbreviations listed in @sec-tables.
 
 <br>
 
-As one might expect, there are many more establishments with a small number of employees. Each subsequent employee size class includes fewer establishments.
+## Number of establishments in NC
+
+As one might expect, there are many more establishments with a small number of employees. Each subsequent employee size class includes fewer establishments. Compare the number of workers in each employee size class in @fig-state-workers.
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-establishments-two-plot
@@ -473,7 +475,7 @@ p1 + p2 +
 
 <br>
 
-How does NC compare to the USA as a whole in the distribution of establishments? In general, quite similar.
+NC's distribution of establishments is quite similar to the USA as a whole:
 
 ```{r fig.height=6, fig.width=8}
 #| label: fig-state-establishments-by-sector-pct-usa-compare
@@ -541,80 +543,9 @@ data_for_plot |>
 
 <br>
 
-```{r fig.height=8, fig.width=12}
-#| label: fig-state-establishments-naics-pct-two-plot
-#| fig-height: 8
-#| fig-width: 12
-#| fig-cap: "Percent of NC establishments in each employee size class by sector 2021"
-#| column: page-inset-right
-
-data_for_plot <- d_est_state_nc_size_classes |>
-  filter(year == 2021) 
-
-p1 <- data_for_plot |>
-  mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
-  ggplot() +
-  geom_col(aes(x = pct_est, y = est_size_class, fill = naics_abbr),
-           alpha = 0.6, show.legend = FALSE) +
-  scale_x_continuous(labels = label_percent(accuracy = 1)) +
-  scale_y_discrete(limits=rev) +
-  labs(
-    x = "Percent of establishments",
-    y = "Employee size class",
-    color = NULL
-  )
-
-p2 <- data_for_plot |>
-  mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
-  ggplot() +
-  geom_col(aes(x = pct_est, y = est_size_class, fill = naics_abbr),
-           alpha = 0.6, position = position_fill()) +
-  scale_x_continuous(labels = label_percent(accuracy = 1)) +
-  scale_y_discrete(limits=rev) +
-  labs(
-    x = "Distribution of size classes",
-    y = "Employee size class",
-    color = NULL
-  )
-
-p3 <- data_for_plot |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, pct_est, sum)) |>
-  ggplot() +
-  geom_col(aes(y = naics_abbr, x = pct_est, fill = est_size_class),
-           alpha = 0.6, show.legend = FALSE) +
-  scale_x_continuous(labels = label_percent(accuracy = 1)) +
-  scale_fill_viridis_d(end = 0.85) +
-  labs(
-    x = "Percent of establishments",
-    y = NULL,
-    color = NULL
-  )
-
-p4 <- data_for_plot |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, pct_est, sum)) |>
-  ggplot() +
-  geom_col(aes(y = naics_abbr, x = pct_est, fill = est_size_class),
-           alpha = 0.6,position = position_fill()) +
-  scale_x_continuous(labels = label_percent(accuracy = 1)) +
-  scale_fill_viridis_d(end = 0.85) +
-  labs(
-    x = "Distribution of NAICS categories",
-    y = NULL,
-    color = NULL
-  )
-
-(p1 + p2) / (p3 + p4) +
-  plot_annotation(
-    title = "Percent of NC establishments in each employee size class by sector",
-    subtitle = "2021; includes all sectors reported in CBP",
-    caption = my_caption
-  )
-  
-```
-
-<br>
-
 ## Trends in the number of establishements
+
+The 2008 financial crisis led to a significant drop in the number of construction, real estate, and retail establishments. In most sectors, establishments were able to shed employees during the crisis and stay in business (compare fig-state-employment-naics-timeseries), presumably due in part to the Paycheck Protection Program and other assistance from Federal^[<https://home.treasury.gov/policy-issues/coronavirus/assistance-for-small-businesses> ] and state^[<https://www.ncdor.gov/business-recovery-grant> ] governments. 
 
 ```{r fig.height=10, fig.width=12}
 #| label: fig-state-establishments-naics-timeseries
@@ -687,7 +618,7 @@ p3 <- data_for_plot |>
   scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
   scale_y_continuous(labels = label_percent()) +
   labs(
-    subtitle = glue("What is the percent change in establishments since 2001?"),
+    subtitle = glue("Percent change in establishments since 2001"),
     x = "Establishments in NC in 2021",
     y = "Pct change since 2001"
     )
@@ -704,7 +635,7 @@ p3 <- data_for_plot |>
 
 <br>
 
-How has the portion of establishments changed over time?
+How has the proportion of establishments by employee size class changed over time? In general, the smallest establishments come and go faster than larger establishments.
 
 ```{r fig.height=8, fig.width=10}
 #| label: fig-state-establishments-pct-timeseries
@@ -712,8 +643,6 @@ How has the portion of establishments changed over time?
 #| fig-width: 10
 #| fig-cap: "Percent of NC establishments by employee size class 2001-2021 for top sectors"
 #| column: page-inset-right
-
-# TODO: should I lump on 2021 top sectors? (currently considering whole time range)
 
 data_for_plot <- d_est_state_nc_size_classes |>
   mutate(naics_abbr = fct_lump(naics_abbr, 9, w = value)) |>
@@ -741,7 +670,7 @@ data_for_plot |>
 
 ## Table
 
-Sorted by percent difference from 2001 to 2021
+Sorted by percent difference in number of 2001 to 2021.
 
 ```{r}
 #| label: tbl-state-nc-est
