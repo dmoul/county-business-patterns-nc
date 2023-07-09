@@ -110,7 +110,7 @@ n_employees_ref <- tibble(
 ```
 
 ```{r}
-#| label: define-cbp-data-county
+#| label: define-cbp-data-county-and-state
 
 data_fname <- "./data/processed/cbp_county_sector_totals_2001_2021.rds"
 
@@ -163,16 +163,63 @@ d_cbp_data_county <- dta |>
   mutate(avg_wage = if_else(emp > 0, (ap * 1000) / emp, NA_real_)) |> # nominal avg wage for sector one year
   select(-c(n1000_1:n1000_4))
 
-```
 
-```{r}
-#| label: define-cbp-data-state
+###### HealthSoc detail by county
 
-# It's worth getting the state data separately from county data and aggregating it (I think) 
-# so that state-level aggregation of establishments at various employee size classes are counted 
-# with state-scope rather than county-cope. 
-# Hypothesis: the state-scope will have noticeably more larger establishments and 
-#             will differ from county-sourced aggregations, since there is more error in the county-sourced (smaller) data
+data_fname <- "./data/processed/cbp_county_healthsoc_2001_2021.rds"
+
+if(!file.exists(data_fname)) {
+  data_files <- tibble(
+    file_path = fs::dir_ls("./data/raw/",
+                           regexp = ".{3}[0-2][0-9]co.txt")
+  )
+  
+  get_cdp_data_from_file <- function(file_path, year) {
+    read_csv(file = file_path, 
+             id = "path",
+             col_names = TRUE,
+             show_col_types = FALSE) |>
+      clean_names() |>
+      filter(str_detect(naics, "^62"))
+  }
+  
+  dta <- bind_rows(
+    bind_rows(
+      dta_part1 <- map_dfr(data_files[1:6, ], get_cdp_data_from_file),
+      dta_part2 <- map_dfr(data_files[7:14, ], get_cdp_data_from_file),
+      dta_part3 <- map_dfr(data_files[15, ], get_cdp_data_from_file),
+      dta_part4 <- map_dfr(data_files[16, ], get_cdp_data_from_file)
+    ),
+    bind_rows(
+      dta_part5 <- map_dfr(data_files[17, ], get_cdp_data_from_file),
+      dta_part6 <- map_dfr(data_files[18:19, ], get_cdp_data_from_file),
+      dta_part7 <- map_dfr(data_files[20:21, ], get_cdp_data_from_file)
+    ) |>
+      rename(n1_4 = n_5) |>
+      # convert to numeric, addressing "N" values
+      mutate(across(n1_4:n1000_4, function(x) ifelse(x == "N", "0", x))) |>
+      mutate(across(n1_4:n1000_4, as.numeric)),
+  ) |>
+    mutate(year = as.numeric(paste0("20", str_extract(path, "\\d{2}")))) |>
+    select(-ends_with(c("flag", "_nf")),
+           -c(censtate:cencty)
+    ) |>
+    relocate(year, .before = path) |>
+    relocate(path, .after = est)
+  
+  write_rds(dta, data_fname,
+            compress = "bz2")
+} else {
+  dta <- read_rds(data_fname)
+}
+
+d_cbp_data_county_healthsoc <- dta |>
+  filter(str_detect(naics, "^62")) |>
+  mutate(avg_wage = if_else(emp > 0, (ap * 1000) / emp, NA_real_)) |> # nominal avg wage for sector one year
+  select(-c(n1000_1:n1000_4))
+
+  
+###### State-level detail
 
 data_fname <- "./data/processed/cbp_state_sector_totals_2001_2021.rds"
 
@@ -336,6 +383,16 @@ d_emp_state_nc_size_classes <- d_cbp_data_state |>
          .by = "year") |>
   filter(value > 0)
 
+top_naics <- d_emp_sector_total_state_nc |>
+  filter(year == 2021) |>
+  slice_max(order_by = emp, n = top_naics_cutoff) |>
+  mutate(naics_abbr = fct_reorder(naics_abbr, emp),
+         naics_sort_order = row_number()) |>
+  select(naics, naics_abbr, naics_sort_order)
+
+state_nc_workers_2021 <- d_emp_sector_total_state_nc |>
+  filter(year == 2021)
+
 
 ###### NC county ######
 
@@ -391,6 +448,29 @@ d_emp_county_nc_size_classes <- d_cbp_data_county |>
          .by = c("year", "fipscty")) |>
   filter(value > 0)
 
+top_counties_emp <- d_emp_sector_total_county |>
+  filter(year == 2021) |>
+  summarize(emp_sum = sum(emp),
+            .by = county_name) |>
+  slice_max(order_by = emp_sum, n = top_county_cutoff)
+
+d_nc_2021_top5_sectors_county_nc <- d_emp_sector_total_county |>
+  filter(year == 2021) |>
+  inner_join(top_counties_emp,
+            by = "county_name") |>
+  slice_max(order_by = emp,
+            n = 5,
+            by = "fipscty") |>
+  mutate(n_cat = n(),
+         emp_rank = n_cat + 1 - rank(emp,
+                             ties.method = "random"),.by = fipscty)
+
+d_emp_county_healthsoc <- d_cbp_data_county_healthsoc |>
+  filter(fipstate == "37") |>
+  select(year, fipstate, fipscty, naics, emp, starts_with("n"), avg_wage) |>
+  left_join(d_naics_ref_2021,
+            by = "naics")
+
 
 ###### USA ######
 
@@ -423,7 +503,6 @@ d_est_emp_total_usa <- d_cbp_data_state |>
             e250_499 = sum(e250_499, na.rm = TRUE),
             e500_999 = sum(e500_999, na.rm = TRUE),
             e1000 = sum(e1000, na.rm = TRUE),
-            #avg_wage = weighted.mean(ap * 1000, w = emp),
             .by = c("year", "naics", "naics_descr", "naics_abbr")
             )
 
@@ -469,30 +548,11 @@ d_emp_usa_total_size_classes <- d_est_emp_total_usa |>
          .by = "year") |>
   filter(value > 0)
 
-
-###### for helpful sub-setting ######
-
-top_naics <- d_emp_sector_total_state_nc |>
-  filter(year == 2021) |>
-  slice_max(order_by = emp, n = top_naics_cutoff) |>
-  mutate(naics_abbr = fct_reorder(naics_abbr, emp),
-         naics_sort_order = row_number()) |>
-  select(naics, naics_abbr, naics_sort_order)
-
-top_counties_emp <- d_emp_sector_total_county |>
-  filter(year == 2021) |>
-  summarize(emp_sum = sum(emp),
-            .by = county_name) |>
-  slice_max(order_by = emp_sum, n = top_county_cutoff)
-
-state_nc_workers_2021 <- d_emp_sector_total_state_nc |>
-  filter(year == 2021)
-
 ```
 
 ## NC employment by sector
 
-In the state-level data for 2021 the CBP reported `r comma(sum(state_nc_workers_2021$emp))` workers in `r nrow(state_nc_workers_2021)` NAICS categories.
+In the state-level data for 2021 the CBP reported `r comma(sum(state_nc_workers_2021$emp))` workers in `r nrow(state_nc_workers_2021)` NAICS categories, which are summarized in @sec-tables.
 
 ```{r fig.height=6, fig.width=8}
 #| label: fig-state-employment-by-sector-count
@@ -531,7 +591,7 @@ The employment distribution across the sectors in NC and the USA overall is simi
 #| fig-height: 5
 #| fig-width: 7
 #| fig-cap: "NC employment by sector compared to USA 2021"
-#| fig-alt: "This  plot lists employment sectors on the Y axis with points indicating the percent of the employment in North Carolina and all 50 states. The percentages are similar for both."
+#| fig-alt: "This plot lists employment sectors on the Y axis with points indicating the percent of the employment in North Carolina and all 50 states. The percentages are similar for both."
 
 data_for_plot <- bind_rows(
   d_emp_sector_total_state_nc |>
@@ -649,7 +709,7 @@ p1 + p2 +
 
 <br>
 
-Further categorizing this data by industry sector reveals which industries have concentrations of workers in establishments of particular size classes. Employees in AccFood tend to work in establishments in the 10 to 100 employee range. In Retail there is a wider range: from very small to 499 employees and almost none larger. The industry sectors with the largest portion of employees working for the largest establishments are HeathSoc (hospital systems, I assume) and FinIns. Consruction and ProfSciTech have the largest portion of employees in the sectory working in 1-4 employee establishments.
+Further categorizing this data by industry sector reveals which industries have concentrations of workers in establishments of particular size classes. Employees in AccFood mostly work in establishments in the 10 to 100 employee range. In Retail there is a wider range: from very small to 499 employees and almost none larger. The industry sectors with the largest portion of employees working for the largest establishments are HeathSoc (hospital systems, I assume) and FinIns. Construction and ProfSciTech have the largest portion of employees in the sector working in 1-4 employee establishments.
 
 ```{r fig.height=8, fig.width=12}
 #| label: fig-state-establishments-employees-naics-pct-two-plot
@@ -730,18 +790,7 @@ p4 <- data_for_plot |>
 
 ## Top sectors in largest NC counties
 
-```{r}
-d_nc_2021_top5 <- d_emp_sector_total_county |>
-  filter(year == 2021) |>
-  inner_join(top_counties_emp,
-            by = "county_name") |>
-  slice_max(order_by = emp,
-            n = 5,
-            by = "fipscty") |>
-  mutate(n_cat = n(),
-         emp_rank = n_cat + 1 - rank(emp,
-                             ties.method = "random"),.by = fipscty)
-```
+Are there similarities in the top sectors and their proportions in the counties with the most workers? Yes. HealthSoc, Retail, and AccFood are among the top four sectors in each of the top nine counties and the "Statewide" category. There are some differences: Mecklenburg's top sector is FinIns, Durham's is ProfSciTec, and Catawba's is Manuf.
 
 ```{r fig.height=10, fig.width=14}
 #| label: fig-rank-employee-count-top-counties-pct
@@ -759,7 +808,7 @@ county_name_label <- d_emp_sector_total_county |> #d_sector_totals_county |>
   mutate(county_name_label = glue("{county_name}\n{comma(emp_sum)}"),
          county_name_label = fct_reorder(county_name_label, -emp_sum))
 
-data_for_plot <- d_nc_2021_top5 |>
+data_for_plot <- d_nc_2021_top5_sectors_county_nc |>
   select(county_name, emp, naics, naics_descr, emp_rank) |>
   left_join(d_naics_abbr_ref,
              by = c("naics_descr")) |>
@@ -794,6 +843,8 @@ data_for_plot |>
 
 <br>
 
+The same information is presented below with simple ranking:
+
 ```{r fig.height=8, fig.width=10}
 #| label: fig-rank-employee-count-top-counties-rank
 #| fig-height: 8
@@ -824,9 +875,9 @@ data_for_plot |>
 
 <br>
 
-## Trends in employment statewide
+## Trends in employment
 
-***TODO: add an intro here***
+The last two decades have brought significant changes in the number and mix of employees in NC. The financial crisis in 2008 and the following years caused significant job losses (and company closings see @fig-state-establishments-naics-timeseries), the trend overall has been upward, reflecting the growing population of the state.
 
 ```{r fig.height=6, fig.width=12}
 #| label: fig-state-employment-total-timeseries
@@ -853,8 +904,6 @@ p1 <- data_for_plot |>
   geom_line(aes(x = year, y = emp, color = year),
            linewidth = 1, alpha = 0.6, show.legend = FALSE) +
   scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-  # expand_limits(x = 2026,
-  #               y = 0) +
   guides(color = guide_legend(override.aes = c(linewidth = 3))) +
    expand_limits(y = 0) +
   labs(
@@ -888,6 +937,8 @@ p2 <- data_for_plot |>
 ```
 
 <br>
+
+The sector-level dynamics have varied a lot. Compare Manuf with HealthSoc, for example:
 
 ```{r fig.height=10, fig.width=12}
 #| label: fig-state-employment-naics-timeseries
@@ -978,8 +1029,8 @@ p3 <- data_for_plot |>
 
 The portion of employees in each employee class size varies over time and across sectors. Decade-long trends are visible: 
 
-* The share of employees in the Accommodation and Food sector has been increasing in most employee size classes
-* The share in Manufacturing has been in noticable decline, especially through 2015 and in the larger employee size classes
+* The share of employees in the Accommodation and Food sector has been increasing in most employee size classes, yet this sector suffered the most during the COVID-19 pandemic 2020-2021.
+* The share in Manufacturing has been in noticeable decline, especially through 2015 and in the larger employee size classes
 * Construction slowed significantly after the 2008 financial crisis.
 
 In the HealthSoc, Retail, and ProfSciTec sectors there are cases of big changes from one year to the next in multiple employee size classes. I wonder if this is due to changes in NAICS categories, changes in measurement methodology, or a real change in that sector.
@@ -994,7 +1045,7 @@ Noise added to some data before release may be the cause of the jumpiness in som
 #| column: page-inset-right
 #| fig-alt: "This nine-panel line plot shows employee size class from 2001 to 2021 for the nine industry sectors employing the most poeple."
 
-data_for_plot <- d_emp_state_nc_size_classes |> # d_emp_state_nc_size_classes |> #d_sector_totals_state |>
+data_for_plot <- d_emp_state_nc_size_classes |>
   inner_join(n_employees_ref |>
                select(-est_size_class),
              by = "emp_size_class") |>
@@ -1062,6 +1113,8 @@ data_for_plot |>
 <br>
 
 ## Trends in employment - counties
+
+There is naturally more variation when looking at the 100 counties rather than state summaries. The patterns are generally the same across counties of differing number of workers. I see two noticeable differences: (1) the largest counties are not in the group of the most extreme growth or decline; and (2) there is a group of ten or so mid-sized counties that declined modestly from 2001-2007, then quickly 2008-2009, and have grown slowly since then but still with lower employment than in 2001.
 
 ```{r fig.height=8, fig.width=14}
 #| label: fig-county-employees-sector-totals-time-series-pct
@@ -1138,44 +1191,7 @@ p2 <- data_for_plot |>
     y = "Growth (2001 = 1)"
   )
 
-  
-# p2 <- data_for_plot |>
-#   filter(year == 2021) |>
-#   ggplot(aes(x = emp, y = pct_growth_full_period, color = pct_growth_full_period)) +
-#   geom_point(size = 2, alpha = 0.6, show.legend = FALSE) +
-#   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
-#   geom_text_repel(data = labels_for_plot,
-#                   aes(label = county_name),
-#                   hjust = 1, vjust = 0.5, size = 3,
-#                   show.legend = FALSE) +
-#   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-#   scale_color_viridis_c(end = 0.85) +
-#   labs(
-#     subtitle = glue("The counties with the largest growth and decline are among the counties",
-#                     "\nwith low to mid-range number of workers"),
-#     x = "County employment in 2021 (log10 scale)",
-#     y = NULL
-#   )
-  
-  # TODO: rework this or delete it
-  # p2 <- data_for_plot |>
-  #   #filter(year == 2021) |>
-  #   #filter(county_name %in% head(county_name, 50)) |> #c("Orange", "Durham")
-  #   ggplot() +
-  #   geom_hline(yintercept = 1, lty = 2, size = 0.2, alpha = 0.2) +
-  #   geom_path(aes(x = emp, y = pct_growth_since_2001, color = year, group = county_name),
-  #             size = 0.6, alpha = 0.6) + #, arrow = arrow(length = unit(1, "mm"), type = "closed")) + #, ends = "last"
-  #   geom_point(aes(x = emp, y = pct_growth_full_period, color = year),
-  #              size = 1, alpha = 0.6, show.legend = FALSE) +
-  #   scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-  #   #scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-  #   scale_color_viridis_c(end = 0.85) +
-  #   labs(
-  #     x = "County employment in 2021 (log10 scale)",
-  #     y = "Growth (2001 = 1)"
-  #   )
-  
-  p1 + p2 +
+p1 + p2 +
     plot_layout(widths = c(1, 3)) +
     plot_annotation(
       title = "County employee growth trajectories 2001-2021",
@@ -1188,6 +1204,8 @@ p2 <- data_for_plot |>
 ```
 
 <br>
+
+Placing the county trends in their approximate geographic context, it's noticeable that (1) growth or decline is not concentrated in one part of the state; (2) most of the workers are in a relatively small number of counties; and (3) most of the counties with more than 50K workers saw employment growth 2001-2021 (and plenty of counties with few workers saw employment growth too).
 
 ```{r fig.height=10, fig.width=24}
 #| label: fig-emp-geofacet-pct-counts
@@ -1235,6 +1253,8 @@ data_for_plot |>
 ```
 
 <br>
+
+Looking at change year-to-year for each county where 2001 employment equals 1, some patterns emerge: (1) counties with employment growth in this period tended to grow fast, declined during and after the financial crisis, then grew beyond their previous high water mark in the last decade; (2) some counties in decline lost workers nearly every year.
 
 ```{r fig.height=10, fig.width=24}
 #| label: fig-emp-geofacet-pct-yty
@@ -1324,9 +1344,7 @@ data_for_plot |>
 
 ## Trends in average wages statewide
 
-Average wage trends are not uniform across sectors. Wages in four of the five highest paying sectors grew faster than inflation while it dropped in "Management". I wonder if the drop in the average wage of the management sector is due to manufacturing and financial services disruptions set in motion by the 2008 financial crisis and the COVID-19 pandemic. Or perhaps managers are getting a smaller portion of their income in wages.
-
-Utility workers' average wage declined in the years after the 2008 financial crisis and returned to growth in recent years. I wonder why the average wage of utility sector works nearly doubled in 2009 (and only then). That year no major hurricanes hit NC (which is the only likely "one year disruption" I can think of).
+Average wage trends are not uniform across sectors. Wages in four of the five highest paying sectors grew faster than inflation while they dropped in "Management". I wonder if the drop in the average wage of the management sector is due to manufacturing and financial services disruptions set in motion by the 2008 financial crisis and the COVID-19 pandemic. Or perhaps managers are getting a smaller portion of their income in wages and more in stock or other benefits.
 
 ```{r fig.height=5, fig.width=7}
 #| label: fig-rank-employee-wages-top-sectors-2021-dollars
@@ -1418,8 +1436,7 @@ p1 <- data_for_plot |>
                 y = 0) +
   facet_wrap(~ wage_direction) +
   labs(
-    subtitle = glue("What is the NC average wage trend,",
-                    " and is sector average wage in 2021 up or down compared to 2001?"),
+    subtitle = "NC average wage trend in 2021 up or down compared to 2001",
     x = NULL,
     y = "Average wages"
   )
@@ -1434,7 +1451,7 @@ p2 <- data_for_plot |>
   scale_x_continuous(labels = label_number(scale_cut = cut_short_scale())) +
   scale_y_continuous(labels = label_percent()) +
   labs(
-    subtitle = glue("What is the percentage change in average wages since 2001?"),
+    subtitle = glue("Percent change in average wages since 2001"),
     x = "Employees in NC in 2021",
     y = "Percent change in average wage since 2001"
     )
@@ -1442,7 +1459,78 @@ p2 <- data_for_plot |>
 p1 / p2 +
   plot_annotation(
     title = "Average wages by sector 2001-2021",
-    subtitle = "2021 dollars; includes all sectors reported in CBP",
+    subtitle = "In 2021 dollars; includes all sectors reported in CBP",
+    caption = my_caption
+  )
+
+```
+
+<br>
+
+There is a lot of wage variation in subcategories based on job role and location. Consider "Health and social services" (HealthSoc):
+
+```{r fig.height=6, fig.width=10}
+#| label: fig-wage-healthsoc
+#| fig-height: 6
+#| fig-width: 10
+#| fig-cap: "NC average wages in HealthSoc sector"
+#| warning: false
+#| column: page-inset-right
+#| fig-alt: "The first plot shows the 20 most common detailed NAICS categories in the 'Health and Social Services' category in NC counties. Violin plots show the distribution of average wages over the years 2001-2021. The second plot shows a line for each detailed NAICS category with number of employees in the county on the X axis and average wage on the Y axis. It's clear that in general, employees in counties with more workers in that category enjoy higher wages."
+
+data_for_plot <- d_emp_county_healthsoc |>
+  filter(emp >= 10,
+         !str_detect(naics, "/$|-$")) |> # only the most detailed categories
+  mutate(naics_descr = fct_lump(naics_descr, 20)) |>
+  filter(naics_descr != "Other") |>
+  inner_join(d_infation_adj,
+             by = "year") |>
+  mutate(avg_wage_adjusted = avg_wage * adj) |>
+  filter(!is.na(avg_wage_adjusted))
+
+ave_wage_detailed_naics <- data_for_plot |>
+  summarize(avg_wage = weighted.mean(avg_wage_adjusted, w = emp),
+         .by = c(naics, naics_descr))
+
+n_datapoints <- nrow(data_for_plot)
+  
+p1 <- data_for_plot |>
+  mutate(naics_descr = fct_reorder(naics_descr, avg_wage, mean)) |>
+  ggplot(aes(avg_wage, naics_descr, fill = naics_descr)) +
+  geom_violin(linewidth = 0.2, alpha = 0.7, show.legend = FALSE) + #fill = carolina_blue, 
+  geom_point(data = ave_wage_detailed_naics,
+             aes(avg_wage, naics_descr),
+             shape = "|", size = 4, show.legend = FALSE) +
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale(),
+                                           prefix = "$"),
+                     expand = expansion(mult = c(0, 0.02))) +
+  labs(
+    subtitle = glue("Average wage in HealthSoc varies widely"),
+    x = "Distribution of avg wages\nvertical bar at mean",
+    y = NULL,
+  )
+
+p2 <- data_for_plot |>
+  mutate(naics_descr = fct_reorder(naics_descr, avg_wage, mean)) |>
+  ggplot(aes(emp, avg_wage, group = naics_descr, color = naics_descr)) +
+  geom_smooth(span = 0.97, method = 'loess', formula = 'y ~ x',
+              se = FALSE, show.legend = FALSE,
+              linewidth = 0.6, alpha = 0.4) +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale(),
+                                           prefix = "$")) +
+  labs(
+    subtitle = glue("Average wages generally are higher\nin counties with more workers"),
+    x = "Employees (log10 scale)",
+    y = "Avg sector wage",
+    y = NULL
+    )
+
+p1 + p2 +
+  plot_annotation(
+    title = "HealthSoc in NC 2001-2021",
+    subtitle = glue("In 2021 dollars; includes data where [year, county, naics] employee count ≥ 10 in at least 20 of the 100 NC counties", 
+                    "\nMost detailed NAICS categories only; N = {comma(n_datapoints)}"),
     caption = my_caption
   )
 
@@ -1540,10 +1628,9 @@ Sorted by average wage:
 
 d_emp_sector_total_state_nc |>
   filter(year == 2021) |>
-  select(naics, naics_abbr, naics_descr, avg_wage_2021 = avg_wage, emp_2021 = emp, pct_emp_2021 = pct_emp) |>
+  select(naics, naics_abbr, avg_wage_2021 = avg_wage, emp_2021 = emp, pct_emp_2021 = pct_emp) |>
   arrange(-avg_wage_2021) |>
   mutate(rowid = row_number()) |>
-  relocate(naics_descr, .after = naics) |>
   gt() |>
   tab_header(md(glue("**NC sector employment 2021**",
                      "<br>*Sorted by sector average wage*"))) |>
