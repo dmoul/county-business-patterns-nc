@@ -1,6 +1,6 @@
-# Some Observations about sectors
+# Some observations about sectors
 
-The preceding pages looked at employment, average wages, and establishments in the context of North Carolina, NC counties, and nationally. Views of sector-level data were presented in relation to other sectors. Drawing on these plots, some observations of specific sectors are possible.
+In the preceding pages I looked at employment, average wages, and establishments in the context of North Carolina, NC counties, and nationally. I presented views of sector-level data in relation to other sectors. Drawing on these plots, it's possible to make some observations of specific sectors. All wage comparisons below are in constant dollars.
 
 A lot can change in twenty years. 
 
@@ -10,11 +10,11 @@ This sector grew from third-most employees to first before 2010 and has kept gro
 
 ## Retail
 
-This sector has consistently had the most establishments (@fig-state-establishments-naics-timeseries) and has been ranked second or third for most employees (@fig-state-employment-naics-timeseries). However the number of retail establishments have been falling over these 20 years (@fig-state-establishments-naics-timeseries) primarily among the smallest establishments (@fig-state-establishments-pct-timeseries), and wages have been second or third from the bottom, presumably due in part to a large portion being part-time workers.
+This sector has consistently had the most establishments (@fig-state-establishments-naics-timeseries) and has been ranked second or third for most employees (@fig-state-employment-naics-timeseries). However the number of retail establishments has been falling over these 20 years (@fig-state-establishments-naics-timeseries) primarily among the smallest establishments (@fig-state-establishments-pct-timeseries), and wages have been second or third from the bottom, presumably due in part to a large portion of the workers being part-time.
 
 ## Accomodation and Food (AccFood)
 
-Similarly, this sector has consistently had the most establishments (@fig-state-establishments-naics-timeseries) and has been ranked second or third for most employees (@fig-state-employment-naics-timeseries). However wages have been at the bottom, presumably due in part to a large portion being part-time workers. This sector also saw the largest impact of the COVID-19 pandemic as people stopped eating at restaurants and traveling (@fig-state-employment-naics-timeseries, @fig-state-employees-naics-pct-timeseries-top-9-sectors, @fig-state-establishments-pct-timeseries). Over two decades this sector has seen steady growth--faster than Retail (@fig-rank-employment).
+Similarly, this sector has consistently had the most establishments (@fig-state-establishments-naics-timeseries) and has been ranked second or third for most employees (@fig-state-employment-naics-timeseries). However wages have been at the bottom, presumably due in part to a large portion being part-time workers. This sector also saw the largest impact of the COVID-19 pandemic as people stopped eating at restaurants and traveling (@fig-state-employment-naics-timeseries, @fig-state-employees-naics-pct-timeseries-top-9-sectors, @fig-state-establishments-pct-timeseries). Over two decades this sector has seen steady growth in employment--faster than Retail (@fig-rank-employment).
 
 ## Manufacturing (Manuf)
 
@@ -22,7 +22,7 @@ The loss of nearly a third of manufacturing jobs in the years 2001-2011 (@fig-st
 
 ## Finance and Insurance (FinIns)
 
-This sector took a hit during and after the financial crisis of 2008+ in employment (@fig-state-employment-naics-timeseries), and the smallest establishments (@fig-state-establishments-pct-timeseries) but not in average wages (@fig-wage-trend-top-sectors). Since 2015 there has been growth in employment in the largest establishments (@fig-state-establishments-pct-timeseries). This sector has seen 67% average wage growth over 20 years (@tbl-state-nc-emp-wage-growth), second only to Info (@fig-wage-trend-top-sectors).
+This sector took a hit during and after the financial crisis of 2008+ in employment (@fig-state-employment-naics-timeseries), especially among the smallest establishments (@fig-state-establishments-pct-timeseries), but interestingly average wages were not impacted (@fig-wage-trend-top-sectors). This sector has seen 67% average wage growth over 20 years (@tbl-state-nc-emp-wage-growth), second only to Info (@fig-wage-trend-top-sectors).
 
 ## Information (Info)
 
@@ -38,4 +38,4 @@ The number of education establishments increased 91% from a small base in 2001 t
 
 ## Statewide
 
-Employees not associated with a county are counted in the "Statewide" category. This category has been growing (@fig-county-naics-employees-sector-totals-time-series-pct) and is concentrated in the AdminWaste sector (likely the "Admin" portion) (@fig-county-naics-employees-size-class-time-series-pct).
+Employees not associated with a county are counted in the "Statewide" category. This category has been growing and is concentrated in the AdminWaste sector (likely the "Admin" portion) (@fig-county-naics-employees-size-class-time-series-pct).
