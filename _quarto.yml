@@ -5,6 +5,8 @@ book:
   title: "County Business Patterns in North Carolina 2001-2021"
   author: "Daniel Moul"
   date: today
+  cover-image: "./images/800px-Entering_Union_County_on_North_Carolina_Highway_200.jpg"
+  cover-image-alt: "Weclome to North Carolina highway sign"
   chapters:
     - index.qmd
     - cbp-employment-wages.qmd

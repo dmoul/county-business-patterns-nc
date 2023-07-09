@@ -23,6 +23,6 @@ I use the terms *employment*, *employees*, and *workers* interchangeably. Where 
 
 ## Acknowledgements {.unnumbered}
 
-Special thanks to the US Census staff for producing high-quality data over long time periods. Also shout-out to Jeremy Singer-Vines for highlighting this data in his Data is Plural newsletter [2023.05.31 edition](https://www.data-is-plural.com/archive/2023-05-31-edition/) .
+Special thanks to the US Census staff for producing high-quality data over long time periods. Also shout-out to Jeremy Singer-Vines for highlighting this data in his Data is Plural newsletter [2023.05.31 edition](https://www.data-is-plural.com/archive/2023-05-31-edition/). Photo of [Welcome to North Carolina](https://commons.wikimedia.org/wiki/File:Entering_Union_County_on_North_Carolina_Highway_200.jpg) sign  uploaded to Flickr by WashuOtaku. Unmodified and used by permission ( [Attribution-ShareAlike 2.0 Generic (CC BY-SA 2.0)](https://creativecommons.org/licenses/by-sa/2.0/deed.en) ).
 
 <br>
