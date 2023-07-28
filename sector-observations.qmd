@@ -1,4 +1,4 @@
-# Some observations about sectors
+# Sector observations
 
 In the preceding pages I looked at employment, average wages, and establishments in the context of North Carolina, NC counties, and nationally. I presented views of sector-level data in relation to other sectors. Drawing on these plots, it's possible to make some observations of specific sectors. All wage comparisons below are in constant dollars.
 
