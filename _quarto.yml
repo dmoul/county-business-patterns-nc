@@ -4,7 +4,7 @@ project:
 book:
   title: "County Business Patterns in North Carolina 2001-2021"
   author: "Daniel Moul"
-  date: today
+  date: "July 10, 2023"
   cover-image: "./images/800px-Entering_Union_County_on_North_Carolina_Highway_200.jpg"
   cover-image-alt: "Weclome to North Carolina highway sign"
   chapters:
@@ -14,8 +14,8 @@ book:
     - observations-sectors.qmd
     - notes.qmd
 
-execute:
-  freeze: auto  # re-render only when source changes
+#execute:
+#  freeze: auto  # re-render only when source changes
   
 format:
   html:
