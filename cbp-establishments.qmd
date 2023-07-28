@@ -154,7 +154,7 @@ data_for_plot |>
 
 ## Trends in the number of establishements
 
-The 2008 financial crisis led to a significant drop in the number of construction, real estate, and retail establishments. In most sectors, establishments were able to shed employees during the crisis and stay in business (compare fig-state-employment-naics-timeseries), presumably due in part to the Paycheck Protection Program and other assistance from Federal^[<https://home.treasury.gov/policy-issues/coronavirus/assistance-for-small-businesses> ] and state^[<https://www.ncdor.gov/business-recovery-grant> ] governments. 
+The 2008 financial crisis led to a significant drop in the number of construction, real estate, and retail establishments. In most sectors, establishments were able to shed employees during the crisis and stay in business (compare @fig-state-employment-naics-timeseries), presumably due in part to the Paycheck Protection Program and other assistance from Federal^[<https://home.treasury.gov/policy-issues/coronavirus/assistance-for-small-businesses> ] and state^[<https://www.ncdor.gov/business-recovery-grant> ] governments. 
 
 ```{r fig.height=10, fig.width=12}
 #| label: fig-state-establishments-naics-timeseries
