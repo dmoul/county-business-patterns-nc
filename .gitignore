@@ -43,6 +43,7 @@ not-used.*
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
