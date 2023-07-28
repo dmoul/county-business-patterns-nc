@@ -3,6 +3,9 @@
 # data files
 /data/
 
+# excluded stuff
+/not-for-pushing-to-github/
+
 # generated files
 /_book/
 /_freeze/
